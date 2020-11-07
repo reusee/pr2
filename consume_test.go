@@ -127,7 +127,7 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
-		if numPut != c {
+		if atomic.LoadInt64(&numPut) != atomic.LoadInt64(&c) {
 			t.Fatal()
 		}
 	})
@@ -157,7 +157,7 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
-		if numPut != c {
+		if atomic.LoadInt64(&numPut) != atomic.LoadInt64(&c) {
 			t.Fatal()
 		}
 	})
