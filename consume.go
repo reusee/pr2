@@ -49,11 +49,7 @@ func Consume(
 					if !ok {
 						break loop
 					}
-					select {
-					case outCh <- v:
-					default:
-						values = append(values, v)
-					}
+					values = append(values, v)
 
 				case <-ctx.Done():
 					break loop
