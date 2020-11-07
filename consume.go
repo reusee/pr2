@@ -82,14 +82,7 @@ func Consume(
 		}
 
 		for _, v := range values {
-			select {
-			case outCh <- v:
-			case <-ctx.Done():
-				valueCond.L.Lock()
-				numValue--
-				valueCond.L.Unlock()
-				valueCond.Signal()
-			}
+			outCh <- v
 		}
 
 		close(outCh)
@@ -165,35 +158,25 @@ func Consume(
 		go func() {
 			defer threadWaitGroup.Done()
 
-			for {
-				select {
-
-				case v, ok := <-outCh:
-					if !ok {
-						return
-					}
-					func() {
-						defer func() {
-							valueCond.L.Lock()
-							numValue--
-							valueCond.L.Unlock()
-							valueCond.Signal()
-						}()
-
-						if err := fn(i, v); err != nil {
-							select {
-							case errCh <- err:
-								return
-							default:
-							}
-						}
+			for v := range outCh {
+				func() {
+					defer func() {
+						valueCond.L.Lock()
+						numValue--
+						valueCond.L.Unlock()
+						valueCond.Signal()
 					}()
 
-				case <-ctx.Done():
-					return
-
-				}
+					if err := fn(i, v); err != nil {
+						select {
+						case errCh <- err:
+							return
+						default:
+						}
+					}
+				}()
 			}
+
 		}()
 
 	}

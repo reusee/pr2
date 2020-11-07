@@ -157,6 +157,9 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
+		if numPut != c {
+			t.Fatal()
+		}
 	})
 
 	t.Run("fn error", func(t *testing.T) {
