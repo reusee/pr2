@@ -12,7 +12,7 @@ type Wait = func(noMorePut bool) error
 func Consume(
 	ctx context.Context,
 	numThread int,
-	fn func(i int, v any) error,
+	fn func(threadID int, value any) error,
 ) (
 	put Put,
 	wait Wait,
