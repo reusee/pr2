@@ -31,13 +31,13 @@ func TestConsume(
 			}
 		}
 		if err := wait(true); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 		if c != 8 {
-			t.Fatal()
+			t.Fatalf("got %d", c)
 		}
 		if c != numPut {
-			t.Fatal()
+			t.Fatalf("got %d, %d", c, numPut)
 		}
 	})
 
@@ -61,13 +61,13 @@ func TestConsume(
 			}
 		}
 		if err := wait(false); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 		if c != 8 {
-			t.Fatal()
+			t.Fatalf("got %d", c)
 		}
 		if c != numPut {
-			t.Fatal()
+			t.Fatalf("got %d, %d", c, numPut)
 		}
 
 		for i := 0; i < 8; i++ {
@@ -76,13 +76,13 @@ func TestConsume(
 			}
 		}
 		if err := wait(false); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 		if c != 16 {
-			t.Fatal()
+			t.Fatalf("got %d", 16)
 		}
 		if c != numPut {
-			t.Fatal()
+			t.Fatalf("got %d, %d", c, numPut)
 		}
 	})
 
@@ -109,10 +109,10 @@ func TestConsume(
 			t.Fatal(err)
 		}
 		if c != 0 {
-			t.Fatal()
+			t.Fatalf("got %d", c)
 		}
 		if numPut != 0 {
-			t.Fatal()
+			t.Fatalf("got %d", numPut)
 		}
 	})
 
@@ -129,7 +129,7 @@ func TestConsume(
 			},
 		)
 		if err := wait(true); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 		var numPut int64
 		for i := 0; i < 8; i++ {
@@ -138,13 +138,13 @@ func TestConsume(
 			}
 		}
 		if err := wait(true); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 		if c != 0 {
-			t.Fatal()
+			t.Fatalf("got %d", c)
 		}
 		if c != numPut {
-			t.Fatal()
+			t.Fatalf("got %d", numPut)
 		}
 	})
 
@@ -172,8 +172,8 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
-		if atomic.LoadInt64(&numPut) != atomic.LoadInt64(&c) {
-			t.Fatal()
+		if a, b := atomic.LoadInt64(&numPut), atomic.LoadInt64(&c); a != b {
+			t.Fatalf("got %d, %d", a, b)
 		}
 	})
 
@@ -202,8 +202,8 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
-		if atomic.LoadInt64(&numPut) != atomic.LoadInt64(&c) {
-			t.Fatal()
+		if a, b := atomic.LoadInt64(&numPut), atomic.LoadInt64(&c); a != b {
+			t.Fatalf("got %d, %d", a, b)
 		}
 	})
 
@@ -229,11 +229,14 @@ func TestConsume(
 			}
 		}
 		err := wait(true)
-		if err == nil || err.Error() != "foo" {
+		if err == nil {
 			t.Fatal()
 		}
+		if err.Error() != "foo" {
+			t.Fatalf("got %v", err)
+		}
 		if numPut != c {
-			t.Fatal()
+			t.Fatalf("got %d, %d", numPut, c)
 		}
 		time.Sleep(time.Millisecond * 10)
 	})
@@ -260,11 +263,14 @@ func TestConsume(
 			}
 		}
 		err := wait(true)
-		if err == nil || err.Error() != "foo" {
+		if err == nil {
 			t.Fatal()
 		}
+		if err.Error() != "foo" {
+			t.Fatalf("got %v", err)
+		}
 		if numPut != c {
-			t.Fatal()
+			t.Fatalf("got %d, %d", numPut, c)
 		}
 	})
 
@@ -288,10 +294,10 @@ func TestConsume(
 		)
 		put(2048)
 		if err := wait(false); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 		if c != 2049 {
-			t.Fatal()
+			t.Fatalf("got %d", c)
 		}
 	})
 
