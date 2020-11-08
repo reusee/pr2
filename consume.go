@@ -155,22 +155,16 @@ func Consume(
 			defer threadWaitGroup.Done()
 
 			for v := range outCh {
-				func() {
-					defer func() {
-						valueCond.L.Lock()
-						numValue--
-						valueCond.L.Unlock()
-						valueCond.Signal()
-					}()
-
-					if err := fn(i, v); err != nil {
-						select {
-						case errCh <- err:
-							return
-						default:
-						}
+				if err := fn(i, v); err != nil {
+					select {
+					case errCh <- err:
+					default:
 					}
-				}()
+				}
+				valueCond.L.Lock()
+				numValue--
+				valueCond.L.Unlock()
+				valueCond.Signal()
 			}
 
 		}()
