@@ -3,6 +3,7 @@ package pr
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -161,9 +162,12 @@ func TestConsume(
 			},
 		)
 		var numPut int64
+		wg := new(sync.WaitGroup)
 		for i := 0; i < 128; i++ {
 			i := i
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				if put(i) {
 					atomic.AddInt64(&numPut, 1)
 				}
@@ -172,6 +176,7 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
+		wg.Wait()
 		if a, b := atomic.LoadInt64(&numPut), atomic.LoadInt64(&c); a != b {
 			t.Fatalf("got %d, %d", a, b)
 		}
@@ -190,9 +195,12 @@ func TestConsume(
 			},
 		)
 		var numPut int64
+		wg := new(sync.WaitGroup)
 		for i := 0; i < 128; i++ {
 			i := i
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				if put(i) {
 					atomic.AddInt64(&numPut, 1)
 				}
@@ -202,6 +210,7 @@ func TestConsume(
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
+		wg.Wait()
 		if a, b := atomic.LoadInt64(&numPut), atomic.LoadInt64(&c); a != b {
 			t.Fatalf("got %d, %d", a, b)
 		}
