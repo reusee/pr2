@@ -41,6 +41,51 @@ func TestConsume(
 		}
 	})
 
+	t.Run("multiple wait", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		var c int64
+		put, wait := Consume(
+			ctx,
+			8,
+			func(i int, v any) error {
+				atomic.AddInt64(&c, 1)
+				return nil
+			},
+		)
+
+		var numPut int64
+		for i := 0; i < 8; i++ {
+			if put(i) {
+				numPut++
+			}
+		}
+		if err := wait(false); err != nil {
+			t.Fatal()
+		}
+		if c != 8 {
+			t.Fatal()
+		}
+		if c != numPut {
+			t.Fatal()
+		}
+
+		for i := 0; i < 8; i++ {
+			if put(i) {
+				numPut++
+			}
+		}
+		if err := wait(false); err != nil {
+			t.Fatal()
+		}
+		if c != 16 {
+			t.Fatal()
+		}
+		if c != numPut {
+			t.Fatal()
+		}
+	})
+
 	t.Run("cancel before put", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
