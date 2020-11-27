@@ -1,6 +1,7 @@
 package pr
 
 import (
+	"container/list"
 	"context"
 	"fmt"
 	"math"
@@ -52,34 +53,27 @@ func Consume(
 	threadWaitGroup.Add(1)
 	go func() {
 		defer threadWaitGroup.Done()
-		var values []any
+		values := list.New()
 		var c chan any
-		n := 0
 	loop:
 		for {
 
 			c = inCh
-			if len(values) > backlogSize {
+			if values.Len() > backlogSize {
 				c = nil
 			}
 
-			if len(values) > 0 {
+			if values.Len() > 0 {
 				select {
 
-				case outCh <- values[0]:
-					values = values[1:]
-					n++
-					if n == 1024 {
-						// avoid leak
-						values = append(values[:0:0], values...)
-						n = 0
-					}
+				case outCh <- values.Front().Value:
+					values.Remove(values.Front())
 
 				case v, ok := <-c:
 					if !ok {
 						break loop
 					}
-					values = append(values, v)
+					values.PushBack(v)
 
 				case <-ctx.Done():
 					break loop
@@ -96,7 +90,7 @@ func Consume(
 					select {
 					case outCh <- v:
 					default:
-						values = append(values, v)
+						values.PushBack(v)
 					}
 
 				case <-ctx.Done():
@@ -107,8 +101,10 @@ func Consume(
 
 		}
 
-		for _, v := range values {
-			outCh <- v
+		elem := values.Front()
+		for elem != nil {
+			outCh <- elem.Value
+			elem = elem.Next()
 		}
 
 		close(outCh)
