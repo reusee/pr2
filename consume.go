@@ -2,6 +2,8 @@ package pr
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"sync"
 )
 
@@ -9,14 +11,36 @@ type Put = func(any) bool
 
 type Wait = func(noMorePut bool) error
 
+type ConsumeOption interface {
+	IsConsumeOption()
+}
+
+type BacklogSize struct {
+	Size int
+}
+
+func (_ BacklogSize) IsConsumeOption() {}
+
 func Consume(
 	ctx context.Context,
 	numThread int,
 	fn func(threadID int, value any) error,
+	options ...ConsumeOption,
 ) (
 	put Put,
 	wait Wait,
 ) {
+
+	backlogSize := int(math.MaxInt64)
+
+	for _, option := range options {
+		switch option := option.(type) {
+		case BacklogSize:
+			backlogSize = option.Size
+		default:
+			panic(fmt.Errorf("unknown option: %T", option))
+		}
+	}
 
 	inCh := make(chan any)
 	outCh := make(chan any)
@@ -29,9 +53,15 @@ func Consume(
 	go func() {
 		defer threadWaitGroup.Done()
 		var values []any
+		var c chan any
 		n := 0
 	loop:
 		for {
+
+			c = inCh
+			if len(values) > backlogSize {
+				c = nil
+			}
 
 			if len(values) > 0 {
 				select {
@@ -45,7 +75,7 @@ func Consume(
 						n = 0
 					}
 
-				case v, ok := <-inCh:
+				case v, ok := <-c:
 					if !ok {
 						break loop
 					}
@@ -59,7 +89,7 @@ func Consume(
 			} else {
 				select {
 
-				case v, ok := <-inCh:
+				case v, ok := <-c:
 					if !ok {
 						break loop
 					}
