@@ -2,41 +2,48 @@ package pr
 
 import "sync/atomic"
 
+type Pool struct {
+	pool     []*_PoolElem
+	capacity int32
+	n        int32
+	newFunc  func() any
+}
+
+type _PoolElem struct {
+	Value any
+	Taken int32
+}
+
 func NewPool(
 	capacity int32,
 	newFunc func() any,
-) (
-	get func() (
-		v any,
-		put func(),
-	),
-) {
+) *Pool {
 
-	type Elem struct {
-		Value any
-		Taken int32
-	}
-	var pool []*Elem
+	var pool []*_PoolElem
 	for i := int32(0); i < capacity; i++ {
-		pool = append(pool, &Elem{
+		pool = append(pool, &_PoolElem{
 			Value: newFunc(),
 		})
 	}
 
-	var n int32
-	get = func() (value any, put func()) {
-		elem := pool[atomic.AddInt32(&n, 1)%capacity]
-		if atomic.CompareAndSwapInt32(&elem.Taken, 0, 1) {
-			value = elem.Value
-			put = func() {
-				atomic.StoreInt32(&elem.Taken, 0)
-			}
-		} else {
-			value = newFunc()
-			put = func() {}
-		}
-		return
+	return &Pool{
+		pool:     pool,
+		capacity: capacity,
+		newFunc:  newFunc,
 	}
 
+}
+
+func (p *Pool) Get() (value any, put func()) {
+	elem := p.pool[atomic.AddInt32(&p.n, 1)%p.capacity]
+	if atomic.CompareAndSwapInt32(&elem.Taken, 0, 1) {
+		value = elem.Value
+		put = func() {
+			atomic.StoreInt32(&elem.Taken, 0)
+		}
+	} else {
+		value = p.newFunc()
+		put = func() {}
+	}
 	return
 }
