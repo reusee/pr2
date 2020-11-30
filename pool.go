@@ -1,12 +1,17 @@
 package pr
 
-import "sync/atomic"
+import (
+	"runtime"
+	"sync/atomic"
+)
 
 type Pool struct {
-	pool     []*_PoolElem
-	capacity int32
-	n        int32
-	newFunc  func() any
+	pool       []*_PoolElem
+	capacity   int32
+	n          int32
+	newFunc    func() any
+	LogCallers bool
+	Callers    [][]byte
 }
 
 type _PoolElem struct {
@@ -19,26 +24,35 @@ func NewPool(
 	newFunc func() any,
 ) *Pool {
 
-	var pool []*_PoolElem
-	for i := int32(0); i < capacity; i++ {
-		pool = append(pool, &_PoolElem{
-			Value: newFunc(),
-		})
-	}
-
-	return &Pool{
-		pool:     pool,
+	pool := &Pool{
 		capacity: capacity,
 		newFunc:  newFunc,
 	}
 
+	for i := int32(0); i < capacity; i++ {
+		pool.pool = append(pool.pool, &_PoolElem{
+			Value: newFunc(),
+		})
+	}
+	pool.Callers = make([][]byte, capacity)
+
+	return pool
 }
 
 func (p *Pool) Get() (value any, put func()) {
-	elem := p.pool[atomic.AddInt32(&p.n, 1)%p.capacity]
+	idx := atomic.AddInt32(&p.n, 1) % p.capacity
+	elem := p.pool[idx]
 	if atomic.CompareAndSwapInt32(&elem.Taken, 0, 1) {
+		if p.LogCallers {
+			stack := make([]byte, 8*1024)
+			runtime.Stack(stack, false)
+			p.Callers[idx] = stack
+		}
 		value = elem.Value
 		put = func() {
+			if p.LogCallers {
+				p.Callers[idx] = nil
+			}
 			atomic.StoreInt32(&elem.Taken, 0)
 		}
 	} else {
