@@ -131,8 +131,11 @@ func Consume(
 		case inCh <- v:
 			valueCond.L.Lock()
 			numValue++
+			n := numValue
 			valueCond.L.Unlock()
-			valueCond.Signal()
+			if n == 0 {
+				valueCond.Signal()
+			}
 			return true
 
 		case <-ctx.Done():
@@ -189,8 +192,11 @@ func Consume(
 				}
 				valueCond.L.Lock()
 				numValue--
+				n := numValue
 				valueCond.L.Unlock()
-				valueCond.Signal()
+				if n == 0 {
+					valueCond.Signal()
+				}
 			}
 
 		}()
