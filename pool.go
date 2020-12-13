@@ -6,12 +6,12 @@ import (
 )
 
 type Pool struct {
+	newFunc    func() any
 	pool       []*_PoolElem
+	Callers    [][]byte
 	capacity   int32
 	n          int32
-	newFunc    func() any
 	LogCallers bool
-	Callers    [][]byte
 }
 
 type _PoolElem struct {
