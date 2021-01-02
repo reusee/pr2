@@ -32,7 +32,7 @@ func Consume(
 	wait Wait,
 ) {
 
-	backlogSize := int(math.MaxInt64)
+	backlogSize := int(math.MaxInt32)
 
 	for _, option := range options {
 		switch option := option.(type) {
