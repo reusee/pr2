@@ -3,10 +3,13 @@ package pr
 import (
 	"context"
 	"errors"
+	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/reusee/e4"
 )
 
 func TestConsume(
@@ -310,4 +313,18 @@ func TestConsume(
 		}
 	})
 
+}
+
+func TestConsumeE4Error(t *testing.T) {
+	put, wait := Consume(context.Background(), 8, func(_ int, v any) error {
+		return v.(func() error)()
+	})
+	put(func() error {
+		e4.Check(io.EOF)
+		return nil
+	})
+	err := wait(true)
+	if !errors.Is(err, io.EOF) {
+		t.Fatal()
+	}
 }

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"sync"
+
+	"github.com/reusee/e4"
 )
 
 type Put = func(any) bool
@@ -184,7 +186,11 @@ func Consume(
 			defer threadWaitGroup.Done()
 
 			for v := range outCh {
-				if err := fn(i, v); err != nil {
+				err := func() (err error) {
+					defer e4.Handle(&err)
+					return fn(i, v)
+				}()
+				if err != nil {
 					select {
 					case errCh <- err:
 					default:
