@@ -320,8 +320,10 @@ func TestConsumeE4Error(t *testing.T) {
 		return v.(func() error)()
 	})
 	put(func() error {
-		e4.Check(io.EOF)
-		return nil
+		return func() error {
+			e4.Check(io.EOF)
+			return nil
+		}()
 	})
 	err := wait(true)
 	if !errors.Is(err, io.EOF) {
