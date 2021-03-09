@@ -9,7 +9,7 @@ import (
 
 func NewWaitTree(
 	parentCtx context.Context,
-	parentBegin func() func(),
+	parentAdd func() func(),
 ) (
 	ctx context.Context,
 	add func() func(),
@@ -17,9 +17,9 @@ func NewWaitTree(
 	wait func(),
 ) {
 
-	var parentEnd func()
-	if parentBegin != nil {
-		parentEnd = parentBegin()
+	var parentDone func()
+	if parentAdd != nil {
+		parentDone = parentAdd()
 	}
 
 	ctx, cancel = context.WithCancel(parentCtx)
@@ -43,8 +43,8 @@ func NewWaitTree(
 
 	wait = func() {
 		wg.Wait()
-		if parentEnd != nil {
-			parentEnd()
+		if parentDone != nil {
+			parentDone()
 		}
 	}
 
