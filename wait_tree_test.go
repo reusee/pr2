@@ -3,7 +3,6 @@ package pr
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"sync/atomic"
 	"testing"
 
@@ -54,32 +53,6 @@ func TestWaitTree(t *testing.T) {
 		_ = cancel
 		wait()
 		if c != int64(n*m) {
-			t.Fatal()
-		}
-	})
-
-	t.Run("tree2", func(t *testing.T) {
-		n := int64(1024)
-		var c int64
-		var fork func(context.Context, func() func()) func()
-		fork = func(ctx context.Context, add func() func()) func() {
-			if atomic.AddInt64(&n, -1) <= 0 {
-				return nil
-			}
-			ctx1, add1, cancel1, wait1 := NewWaitTree(ctx, add)
-			for i, j := 0, rand.Intn(8); i < j; i++ {
-				fork(ctx1, add1)
-			}
-			go func() {
-				_ = cancel1
-				wait1()
-				atomic.AddInt64(&c, 1)
-			}()
-			return wait1
-		}
-		wait := fork(context.Background(), nil)
-		wait()
-		if c != 1023 {
 			t.Fatal()
 		}
 	})
