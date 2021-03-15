@@ -16,6 +16,7 @@ func NewWaitTree(
 	add func() func(),
 	cancel func(),
 	wait func(),
+	done func(),
 ) {
 
 	var parentDone func()
@@ -47,6 +48,9 @@ func NewWaitTree(
 
 	wait = func() {
 		wg.Wait()
+	}
+
+	done = func() {
 		if parentDone != nil {
 			parentDone()
 		}
