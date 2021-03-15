@@ -10,7 +10,7 @@ import (
 func NewWaitTree(
 	parentCtx context.Context,
 	parentAdd func() func(),
-	finally func(),
+	onCanceledError func(),
 ) (
 	ctx context.Context,
 	add func() func(),
@@ -27,16 +27,12 @@ func NewWaitTree(
 
 	wg := new(sync.WaitGroup)
 
-	var runFinallyOnce sync.Once
-
 	add = func() func() {
 		select {
 		case <-ctx.Done():
-			runFinallyOnce.Do(func() {
-				if finally != nil {
-					finally()
-				}
-			})
+			if onCanceledError != nil {
+				onCanceledError()
+			}
 			e4.Throw(context.Canceled)
 		default:
 		}
@@ -51,11 +47,6 @@ func NewWaitTree(
 
 	wait = func() {
 		wg.Wait()
-		runFinallyOnce.Do(func() {
-			if finally != nil {
-				finally()
-			}
-		})
 		if parentDone != nil {
 			parentDone()
 		}
