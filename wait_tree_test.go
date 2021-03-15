@@ -12,7 +12,10 @@ import (
 func TestWaitTree(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		ctx, add, cancel, wait := NewWaitTree(context.Background(), nil)
+		var numFinally int
+		ctx, add, cancel, wait := NewWaitTree(context.Background(), nil, func() {
+			numFinally++
+		})
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
@@ -28,15 +31,18 @@ func TestWaitTree(t *testing.T) {
 		if c != int64(n) {
 			t.Fatal()
 		}
+		if numFinally != 1 {
+			t.Fatal()
+		}
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		ctx, add, cancel, wait := NewWaitTree(context.Background(), nil)
+		ctx, add, cancel, wait := NewWaitTree(context.Background(), nil, nil)
 		var c int64
 		n := 128
 		m := 8
 		for i := 0; i < m; i++ {
-			ctx1, add1, cancel1, wait1 := NewWaitTree(ctx, add)
+			ctx1, add1, cancel1, wait1 := NewWaitTree(ctx, add, nil)
 			go func() {
 				for i := 0; i < n; i++ {
 					done := add1()
@@ -58,7 +64,10 @@ func TestWaitTree(t *testing.T) {
 	})
 
 	t.Run("cancel", func(t *testing.T) {
-		_, add, cancel, _ := NewWaitTree(context.Background(), nil)
+		var numFinally int
+		_, add, cancel, _ := NewWaitTree(context.Background(), nil, func() {
+			numFinally++
+		})
 		cancel()
 		func() {
 			var err error
@@ -67,6 +76,9 @@ func TestWaitTree(t *testing.T) {
 					t.Fatal("shoule throw error")
 				}
 				if !errors.Is(err, context.Canceled) {
+					t.Fatal()
+				}
+				if numFinally != 1 {
 					t.Fatal()
 				}
 			}()
