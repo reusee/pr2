@@ -2,7 +2,6 @@ package pr
 
 import (
 	"context"
-	"errors"
 	"os"
 	"strconv"
 	"sync"
@@ -96,7 +95,7 @@ func (t *WaitTree) Wait() {
 					if n == 0 {
 						continue
 					}
-					e4.Throw(errors.New("WAIT TREE BLOCKING: " + stack))
+					pt("WAIT TREE BLOCKING: %s\n", stack)
 				}
 				t.Unlock()
 			}
