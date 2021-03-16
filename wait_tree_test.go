@@ -12,49 +12,48 @@ import (
 func TestWaitTree(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		ctx, add, cancel, wait, done := NewWaitTree(context.Background(), nil, nil)
+		tree := NewWaitTree(nil, nil)
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
-			done := add()
+			done := tree.Add()
 			go func() {
 				defer done()
-				<-ctx.Done()
+				<-tree.Ctx.Done()
 				atomic.AddInt64(&c, 1)
 			}()
 		}
-		cancel()
-		wait()
-		done()
+		tree.Cancel()
+		tree.Wait()
+		tree.Done()
 		if c != int64(n) {
 			t.Fatal()
 		}
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		ctx, add, cancel, wait, done := NewWaitTree(context.Background(), nil, nil)
+		tree := NewWaitTree(nil, nil)
 		var c int64
 		n := 128
 		m := 8
 		for i := 0; i < m; i++ {
-			ctx1, add1, cancel1, wait1, done1 := NewWaitTree(ctx, add, nil)
+			tree1 := NewWaitTree(tree, nil)
 			go func() {
 				for i := 0; i < n; i++ {
-					done := add1()
+					done := tree1.Add()
 					go func() {
 						defer done()
-						<-ctx1.Done()
+						<-tree1.Ctx.Done()
 						atomic.AddInt64(&c, 1)
 					}()
 				}
-				cancel1()
-				wait1()
-				done1()
+				tree1.Cancel()
+				tree1.Wait()
+				tree1.Done()
 			}()
 		}
-		_ = cancel
-		wait()
-		done()
+		tree.Wait()
+		tree.Done()
 		if c != int64(n*m) {
 			t.Fatal()
 		}
@@ -62,10 +61,10 @@ func TestWaitTree(t *testing.T) {
 
 	t.Run("cancel", func(t *testing.T) {
 		var num int
-		_, add, cancel, _, _ := NewWaitTree(context.Background(), nil, func() {
+		tree := NewWaitTree(nil, func() {
 			num++
 		})
-		cancel()
+		tree.Cancel()
 		func() {
 			var err error
 			defer func() {
@@ -80,7 +79,7 @@ func TestWaitTree(t *testing.T) {
 				}
 			}()
 			defer e4.Handle(&err)
-			add()
+			tree.Add()
 		}()
 	})
 

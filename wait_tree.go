@@ -7,54 +7,58 @@ import (
 	"github.com/reusee/e4"
 )
 
+type WaitTree struct {
+	Ctx             context.Context
+	Cancel          func()
+	parentDone      func()
+	onCanceledError func()
+	wg              sync.WaitGroup
+}
+
 func NewWaitTree(
-	parentCtx context.Context,
-	parentAdd func() func(),
+	parent *WaitTree,
 	onCanceledError func(),
-) (
-	ctx context.Context,
-	add func() func(),
-	cancel func(),
-	wait func(),
-	done func(),
-) {
-
-	var parentDone func()
-	if parentAdd != nil {
-		parentDone = parentAdd()
+) *WaitTree {
+	tree := &WaitTree{
+		onCanceledError: onCanceledError,
 	}
+	if parent != nil {
+		tree.parentDone = parent.Add()
+		ctx, cancel := context.WithCancel(parent.Ctx)
+		tree.Ctx = ctx
+		tree.Cancel = cancel
+	} else {
+		ctx, cancel := context.WithCancel(context.Background())
+		tree.Ctx = ctx
+		tree.Cancel = cancel
+	}
+	return tree
+}
 
-	ctx, cancel = context.WithCancel(parentCtx)
-
-	wg := new(sync.WaitGroup)
-
-	add = func() func() {
-		select {
-		case <-ctx.Done():
-			if onCanceledError != nil {
-				onCanceledError()
-			}
-			e4.Throw(context.Canceled)
-		default:
+func (t *WaitTree) Add() (done func()) {
+	select {
+	case <-t.Ctx.Done():
+		if t.onCanceledError != nil {
+			t.onCanceledError()
 		}
-		wg.Add(1)
-		var doneOnce sync.Once
-		return func() {
-			doneOnce.Do(func() {
-				wg.Done()
-			})
-		}
+		e4.Throw(context.Canceled)
+	default:
 	}
-
-	wait = func() {
-		wg.Wait()
+	t.wg.Add(1)
+	var doneOnce sync.Once
+	return func() {
+		doneOnce.Do(func() {
+			t.wg.Done()
+		})
 	}
+}
 
-	done = func() {
-		if parentDone != nil {
-			parentDone()
-		}
+func (t *WaitTree) Wait() {
+	t.wg.Wait()
+}
+
+func (t *WaitTree) Done() {
+	if t.parentDone != nil {
+		t.parentDone()
 	}
-
-	return
 }
