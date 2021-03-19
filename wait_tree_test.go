@@ -12,7 +12,7 @@ import (
 func TestWaitTree(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		tree := NewWaitTree(nil, nil)
+		tree := NewRootWaitTree(nil, nil)
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
@@ -32,7 +32,7 @@ func TestWaitTree(t *testing.T) {
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		tree := NewWaitTree(nil, nil)
+		tree := NewRootWaitTree(context.Background(), nil)
 		var c int64
 		n := 128
 		m := 8

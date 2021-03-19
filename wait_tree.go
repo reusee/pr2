@@ -55,6 +55,23 @@ func NewWaitTree(
 	return tree
 }
 
+func NewRootWaitTree(
+	ctx context.Context,
+	onCanceledError func(),
+) *WaitTree {
+	tree := &WaitTree{
+		onCanceledError: onCanceledError,
+		traces:          make(map[string]int),
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	tree.Ctx = ctx
+	tree.Cancel = cancel
+	return tree
+}
+
 func (t *WaitTree) Add() (done func()) {
 	select {
 	case <-t.Ctx.Done():
