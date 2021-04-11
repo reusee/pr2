@@ -129,3 +129,11 @@ func (t *WaitTree) Done() {
 		t.parentDone()
 	}
 }
+
+func (t *WaitTree) Go(fn func()) {
+	done := t.Add()
+	go func() {
+		defer done()
+		fn()
+	}()
+}

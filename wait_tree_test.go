@@ -16,12 +16,10 @@ func TestWaitTree(t *testing.T) {
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
-			done := tree.Add()
-			go func() {
-				defer done()
+			tree.Go(func() {
 				<-tree.Ctx.Done()
 				atomic.AddInt64(&c, 1)
-			}()
+			})
 		}
 		tree.Cancel()
 		tree.Wait()
@@ -40,12 +38,10 @@ func TestWaitTree(t *testing.T) {
 			tree1 := NewWaitTree(tree, nil)
 			go func() {
 				for i := 0; i < n; i++ {
-					done := tree1.Add()
-					go func() {
-						defer done()
+					tree1.Go(func() {
 						<-tree1.Ctx.Done()
 						atomic.AddInt64(&c, 1)
-					}()
+					})
 				}
 				tree1.Cancel()
 				tree1.Wait()
