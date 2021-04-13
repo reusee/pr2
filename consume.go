@@ -1,5 +1,7 @@
 package pr
 
+//TODO use wait tree
+
 import (
 	"container/list"
 	"context"
@@ -18,9 +20,7 @@ type ConsumeOption interface {
 	IsConsumeOption()
 }
 
-type BacklogSize struct {
-	Size int
-}
+type BacklogSize int
 
 func (_ BacklogSize) IsConsumeOption() {}
 
@@ -39,7 +39,7 @@ func Consume(
 	for _, option := range options {
 		switch option := option.(type) {
 		case BacklogSize:
-			backlogSize = option.Size
+			backlogSize = int(option)
 		default:
 			panic(fmt.Errorf("unknown option: %T", option))
 		}
