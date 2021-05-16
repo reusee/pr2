@@ -58,3 +58,31 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 		}
 	})
 }
+
+func TestGetter(t *testing.T) {
+	pool := NewPool(8, func() any {
+		bs := make([]byte, 8)
+		return &bs
+	})
+	pool.LogCallers = true
+	wg := new(sync.WaitGroup)
+	for i := 0; i < 200; i++ {
+		wg.Add(1)
+		i := i
+		go func() {
+			defer wg.Done()
+			get, put := pool.Getter()
+			defer put()
+			for j := 0; j < 200; j++ {
+				v := get()
+				binary.PutUvarint(*v.(*[]byte), uint64(i))
+			}
+		}()
+	}
+	wg.Wait()
+	for _, caller := range pool.Callers {
+		if len(caller) > 0 {
+			t.Fatalf("not put: %s\n", caller)
+		}
+	}
+}

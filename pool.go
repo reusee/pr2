@@ -2,6 +2,7 @@ package pr
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 )
 
@@ -62,5 +63,37 @@ func (p *Pool) Get() (value any, put func() bool) {
 			return false
 		}
 	}
+	return
+}
+
+func (p *Pool) Getter() (
+	get func() any,
+	putAll func(),
+) {
+
+	var l sync.Mutex
+	curPut := func() {}
+
+	get = func() any {
+		v, put := p.Get()
+		l.Lock()
+		cur := curPut
+		newPut := func() {
+			put()
+			cur()
+		}
+		curPut = newPut
+		l.Unlock()
+		return v
+	}
+
+	putAll = func() {
+		l.Lock()
+		put := curPut
+		curPut = func() {}
+		l.Unlock()
+		put()
+	}
+
 	return
 }
