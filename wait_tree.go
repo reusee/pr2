@@ -2,6 +2,7 @@ package pr
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"sync"
@@ -72,6 +73,8 @@ func NewRootWaitTree(
 	return tree
 }
 
+var errStacktrace = errors.New("stack trace")
+
 func (t *WaitTree) Add() (done func()) {
 	select {
 	case <-t.Ctx.Done():
@@ -84,7 +87,7 @@ func (t *WaitTree) Add() (done func()) {
 	t.wg.Add(1)
 	var stack string
 	if traceWaitTree > 0 {
-		stack = e4.NewStacktrace()(nil).Error()
+		stack = e4.WrapStacktrace(errStacktrace).Error()
 		t.Lock()
 		t.traces[stack]++
 		t.Unlock()
