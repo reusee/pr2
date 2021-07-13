@@ -23,7 +23,6 @@ func TestWaitTree(t *testing.T) {
 		}
 		tree.Cancel()
 		tree.Wait()
-		tree.Done()
 		if c != int64(n) {
 			t.Fatal()
 		}
@@ -45,11 +44,9 @@ func TestWaitTree(t *testing.T) {
 				}
 				tree1.Cancel()
 				tree1.Wait()
-				tree1.Done()
 			}()
 		}
 		tree.Wait()
-		tree.Done()
 		if c != int64(n*m) {
 			t.Fatal()
 		}

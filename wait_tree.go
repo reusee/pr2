@@ -13,10 +13,9 @@ import (
 )
 
 type WaitTree struct {
-	Ctx        context.Context
-	Cancel     func()
-	parentDone func()
-	wg         sync.WaitGroup
+	Ctx    context.Context
+	Cancel func()
+	wg     sync.WaitGroup
 
 	sync.Mutex
 	traces map[string]int
@@ -41,10 +40,15 @@ func NewWaitTree(
 		traces: make(map[string]int),
 	}
 	if parent != nil {
-		tree.parentDone = parent.Add()
+		parentDone := parent.Add()
 		ctx, cancel := context.WithCancel(parent.Ctx)
 		tree.Ctx = ctx
 		tree.Cancel = cancel
+		go func() {
+			<-ctx.Done()
+			tree.Wait()
+			parentDone()
+		}()
 	} else {
 		ctx, cancel := context.WithCancel(context.Background())
 		tree.Ctx = ctx
@@ -116,12 +120,6 @@ func (t *WaitTree) Wait() {
 		atomic.StoreInt64(&ok, 1)
 	} else {
 		t.wg.Wait()
-	}
-}
-
-func (t *WaitTree) Done() {
-	if t.parentDone != nil {
-		t.parentDone()
 	}
 }
 
