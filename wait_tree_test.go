@@ -12,7 +12,7 @@ import (
 func TestWaitTree(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		tree := NewRootWaitTree(nil, nil)
+		tree := NewRootWaitTree(nil)
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
@@ -30,12 +30,12 @@ func TestWaitTree(t *testing.T) {
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		tree := NewRootWaitTree(context.Background(), nil)
+		tree := NewRootWaitTree(context.Background())
 		var c int64
 		n := 128
 		m := 8
 		for i := 0; i < m; i++ {
-			tree1 := NewWaitTree(tree, nil)
+			tree1 := NewWaitTree(tree)
 			go func() {
 				for i := 0; i < n; i++ {
 					tree1.Go(func() {
@@ -57,7 +57,9 @@ func TestWaitTree(t *testing.T) {
 
 	t.Run("cancel", func(t *testing.T) {
 		var num int
-		tree := NewWaitTree(nil, func() {
+		tree := NewWaitTree(nil)
+		tree.Go(func() {
+			<-tree.Ctx.Done()
 			num++
 		})
 		tree.Cancel()
@@ -70,6 +72,7 @@ func TestWaitTree(t *testing.T) {
 				if !errors.Is(err, context.Canceled) {
 					t.Fatal()
 				}
+				tree.Wait()
 				if num != 1 {
 					t.Fatal()
 				}

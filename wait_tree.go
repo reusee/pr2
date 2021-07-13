@@ -13,11 +13,10 @@ import (
 )
 
 type WaitTree struct {
-	Ctx             context.Context
-	Cancel          func()
-	parentDone      func()
-	onCanceledError func()
-	wg              sync.WaitGroup
+	Ctx        context.Context
+	Cancel     func()
+	parentDone func()
+	wg         sync.WaitGroup
 
 	sync.Mutex
 	traces map[string]int
@@ -37,11 +36,9 @@ var traceWaitTree = func() int {
 
 func NewWaitTree(
 	parent *WaitTree,
-	onCanceledError func(),
 ) *WaitTree {
 	tree := &WaitTree{
-		onCanceledError: onCanceledError,
-		traces:          make(map[string]int),
+		traces: make(map[string]int),
 	}
 	if parent != nil {
 		tree.parentDone = parent.Add()
@@ -58,11 +55,9 @@ func NewWaitTree(
 
 func NewRootWaitTree(
 	ctx context.Context,
-	onCanceledError func(),
 ) *WaitTree {
 	tree := &WaitTree{
-		onCanceledError: onCanceledError,
-		traces:          make(map[string]int),
+		traces: make(map[string]int),
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -78,9 +73,6 @@ var errStacktrace = errors.New("stack trace")
 func (t *WaitTree) Add() (done func()) {
 	select {
 	case <-t.Ctx.Done():
-		if t.onCanceledError != nil {
-			t.onCanceledError()
-		}
 		e4.Throw(context.Canceled)
 	default:
 	}
