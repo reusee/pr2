@@ -3,6 +3,7 @@ package pr
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -35,13 +36,31 @@ var traceWaitTree = func() int {
 
 func NewWaitTree(
 	parent *WaitTree,
+	options ...WaitTreeOption,
 ) *WaitTree {
+
+	var timeout time.Duration
+	for _, option := range options {
+		switch option := option.(type) {
+		case Timeout:
+			timeout = time.Duration(option)
+		default:
+			panic(fmt.Errorf("unknown option: %T", option))
+		}
+	}
+
 	tree := &WaitTree{
 		traces: make(map[string]int),
 	}
+	var ctx context.Context
+	var cancel context.CancelFunc
 	if parent != nil {
 		parentDone := parent.Add()
-		ctx, cancel := context.WithCancel(parent.Ctx)
+		if timeout > 0 {
+			ctx, cancel = context.WithTimeout(parent.Ctx, timeout)
+		} else {
+			ctx, cancel = context.WithCancel(parent.Ctx)
+		}
 		tree.Ctx = ctx
 		tree.Cancel = cancel
 		go func() {
@@ -50,7 +69,11 @@ func NewWaitTree(
 			parentDone()
 		}()
 	} else {
-		ctx, cancel := context.WithCancel(context.Background())
+		if timeout > 0 {
+			ctx, cancel = context.WithTimeout(context.Background(), timeout)
+		} else {
+			ctx, cancel = context.WithCancel(context.Background())
+		}
 		tree.Ctx = ctx
 		tree.Cancel = cancel
 	}
@@ -59,14 +82,31 @@ func NewWaitTree(
 
 func NewRootWaitTree(
 	ctx context.Context,
+	options ...WaitTreeOption,
 ) *WaitTree {
+
+	var timeout time.Duration
+	for _, option := range options {
+		switch option := option.(type) {
+		case Timeout:
+			timeout = time.Duration(option)
+		default:
+			panic(fmt.Errorf("unknown option: %T", option))
+		}
+	}
+
 	tree := &WaitTree{
 		traces: make(map[string]int),
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	ctx, cancel := context.WithCancel(ctx)
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
 	tree.Ctx = ctx
 	tree.Cancel = cancel
 	return tree
