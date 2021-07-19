@@ -18,7 +18,7 @@ type WaitTree struct {
 	Cancel func()
 	wg     sync.WaitGroup
 
-	sync.Mutex
+	l      sync.Mutex
 	traces map[string]int
 }
 
@@ -124,18 +124,18 @@ func (t *WaitTree) Add() (done func()) {
 	var stack string
 	if traceWaitTree > 0 {
 		stack = e4.WrapStacktrace(errStacktrace).Error()
-		t.Lock()
+		t.l.Lock()
 		t.traces[stack]++
-		t.Unlock()
+		t.l.Unlock()
 	}
 	var doneOnce sync.Once
 	return func() {
 		doneOnce.Do(func() {
 			t.wg.Done()
 			if traceWaitTree > 0 {
-				t.Lock()
+				t.l.Lock()
 				t.traces[stack]--
-				t.Unlock()
+				t.l.Unlock()
 			}
 		})
 	}
@@ -146,14 +146,14 @@ func (t *WaitTree) Wait() {
 		var ok int64
 		time.AfterFunc(time.Second*time.Duration(traceWaitTree), func() {
 			if atomic.CompareAndSwapInt64(&ok, 0, 1) {
-				t.Lock()
+				t.l.Lock()
 				for stack, n := range t.traces {
 					if n == 0 {
 						continue
 					}
 					pt("WAIT TREE BLOCKING: %s\n", stack)
 				}
-				t.Unlock()
+				t.l.Unlock()
 			}
 		})
 		t.wg.Wait()
