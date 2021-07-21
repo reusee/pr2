@@ -9,3 +9,7 @@ type WaitTreeOption interface {
 type Timeout time.Duration
 
 func (_ Timeout) IsWaitTreeOption() {}
+
+type ID string
+
+func (_ ID) IsWaitTreeOption() {}

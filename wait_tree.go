@@ -14,6 +14,7 @@ import (
 )
 
 type WaitTree struct {
+	ID     string
 	Ctx    context.Context
 	Cancel func()
 	wg     sync.WaitGroup
@@ -40,16 +41,20 @@ func NewWaitTree(
 ) *WaitTree {
 
 	var timeout time.Duration
+	var id ID
 	for _, option := range options {
 		switch option := option.(type) {
 		case Timeout:
 			timeout = time.Duration(option)
+		case ID:
+			id = option
 		default:
 			panic(fmt.Errorf("unknown option: %T", option))
 		}
 	}
 
 	tree := &WaitTree{
+		ID:     string(id),
 		traces: make(map[string]int),
 	}
 	var ctx context.Context
@@ -86,16 +91,20 @@ func NewRootWaitTree(
 ) *WaitTree {
 
 	var timeout time.Duration
+	var id ID
 	for _, option := range options {
 		switch option := option.(type) {
 		case Timeout:
 			timeout = time.Duration(option)
+		case ID:
+			id = option
 		default:
 			panic(fmt.Errorf("unknown option: %T", option))
 		}
 	}
 
 	tree := &WaitTree{
+		ID:     string(id),
 		traces: make(map[string]int),
 	}
 	if ctx == nil {
