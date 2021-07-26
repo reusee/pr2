@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
+	"io"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/reusee/e4"
@@ -19,21 +17,10 @@ type WaitTree struct {
 	Cancel func()
 	wg     sync.WaitGroup
 
-	l      sync.Mutex
-	traces map[string]int
+	traceEnabled bool
+	l            sync.Mutex
+	traces       map[string]int
 }
-
-var traceWaitTree = func() int {
-	env := os.Getenv("TRACE_WAIT_TREE")
-	if len(env) == 0 {
-		return 0
-	}
-	n, err := strconv.Atoi(env)
-	if err != nil {
-		panic("bad TRACE_WAIT_TREE value")
-	}
-	return n
-}()
 
 func NewWaitTree(
 	parent *WaitTree,
@@ -42,20 +29,24 @@ func NewWaitTree(
 
 	var timeout time.Duration
 	var id ID
+	var traceEnabled bool
 	for _, option := range options {
 		switch option := option.(type) {
 		case Timeout:
 			timeout = time.Duration(option)
 		case ID:
 			id = option
+		case Trace:
+			traceEnabled = bool(option)
 		default:
 			panic(fmt.Errorf("unknown option: %T", option))
 		}
 	}
 
 	tree := &WaitTree{
-		ID:     string(id),
-		traces: make(map[string]int),
+		ID:           string(id),
+		traceEnabled: traceEnabled,
+		traces:       make(map[string]int),
 	}
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -92,20 +83,24 @@ func NewRootWaitTree(
 
 	var timeout time.Duration
 	var id ID
+	var traceEnabled bool
 	for _, option := range options {
 		switch option := option.(type) {
 		case Timeout:
 			timeout = time.Duration(option)
 		case ID:
 			id = option
+		case Trace:
+			traceEnabled = bool(option)
 		default:
 			panic(fmt.Errorf("unknown option: %T", option))
 		}
 	}
 
 	tree := &WaitTree{
-		ID:     string(id),
-		traces: make(map[string]int),
+		ID:           string(id),
+		traceEnabled: traceEnabled,
+		traces:       make(map[string]int),
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -131,7 +126,7 @@ func (t *WaitTree) Add() (done func()) {
 	}
 	t.wg.Add(1)
 	var stack string
-	if traceWaitTree > 0 {
+	if t.traceEnabled {
 		stack = e4.WrapStacktrace(errStacktrace).Error()
 		t.l.Lock()
 		t.traces[stack]++
@@ -141,7 +136,7 @@ func (t *WaitTree) Add() (done func()) {
 	return func() {
 		doneOnce.Do(func() {
 			t.wg.Done()
-			if traceWaitTree > 0 {
+			if t.traceEnabled {
 				t.l.Lock()
 				t.traces[stack]--
 				t.l.Unlock()
@@ -151,25 +146,7 @@ func (t *WaitTree) Add() (done func()) {
 }
 
 func (t *WaitTree) Wait() {
-	if traceWaitTree > 0 {
-		var ok int64
-		time.AfterFunc(time.Second*time.Duration(traceWaitTree), func() {
-			if atomic.CompareAndSwapInt64(&ok, 0, 1) {
-				t.l.Lock()
-				for stack, n := range t.traces {
-					if n == 0 {
-						continue
-					}
-					pt("WAIT TREE BLOCKING: %s\n", stack)
-				}
-				t.l.Unlock()
-			}
-		})
-		t.wg.Wait()
-		atomic.StoreInt64(&ok, 1)
-	} else {
-		t.wg.Wait()
-	}
+	t.wg.Wait()
 }
 
 func (t *WaitTree) Go(fn func()) {
@@ -178,4 +155,12 @@ func (t *WaitTree) Go(fn func()) {
 		defer done()
 		fn()
 	}()
+}
+
+func (t *WaitTree) PrintTraces(w io.Writer) {
+	t.l.Lock()
+	defer t.l.Unlock()
+	for trace, num := range t.traces {
+		fmt.Fprintf(w, "<%d> %s\n", num, trace)
+	}
 }

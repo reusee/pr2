@@ -13,3 +13,7 @@ func (_ Timeout) IsWaitTreeOption() {}
 type ID string
 
 func (_ ID) IsWaitTreeOption() {}
+
+type Trace bool
+
+func (_ Trace) IsWaitTreeOption() {}
