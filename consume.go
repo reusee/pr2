@@ -12,8 +12,6 @@ import (
 	"github.com/reusee/e4"
 )
 
-type Put = func(any) bool
-
 type Wait = func(noMorePut bool) error
 
 type ConsumeOption interface {
@@ -24,13 +22,13 @@ type BacklogSize int
 
 func (_ BacklogSize) IsConsumeOption() {}
 
-func Consume(
+func Consume[T any](
 	ctx context.Context,
 	numThread int,
-	fn func(threadID int, value any) error,
+	fn func(threadID int, value T) error,
 	options ...ConsumeOption,
 ) (
-	put Put,
+	put func(T) bool,
 	wait Wait,
 ) {
 
@@ -45,8 +43,8 @@ func Consume(
 		}
 	}
 
-	inCh := make(chan any)
-	outCh := make(chan any)
+	inCh := make(chan T)
+	outCh := make(chan T)
 	threadWaitGroup := new(sync.WaitGroup)
 	errCh := make(chan error, 1)
 	valueCond := sync.NewCond(new(sync.Mutex))
@@ -56,7 +54,7 @@ func Consume(
 	go func() {
 		defer threadWaitGroup.Done()
 		values := list.New()
-		var c chan any
+		var c chan T
 	loop:
 		for {
 
@@ -68,7 +66,7 @@ func Consume(
 			if values.Len() > 0 {
 				select {
 
-				case outCh <- values.Front().Value:
+				case outCh <- values.Front().Value.(T):
 					values.Remove(values.Front())
 
 				case v, ok := <-c:
@@ -105,7 +103,7 @@ func Consume(
 
 		elem := values.Front()
 		for elem != nil {
-			outCh <- elem.Value
+			outCh <- elem.Value.(T)
 			elem = elem.Next()
 		}
 
@@ -115,7 +113,7 @@ func Consume(
 
 	var putLock sync.RWMutex
 	putClosed := false
-	put = func(v any) bool {
+	put = func(v T) bool {
 
 		putLock.RLock()
 		defer putLock.RUnlock()
