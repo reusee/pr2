@@ -80,40 +80,7 @@ func NewRootWaitTree(
 	ctx context.Context,
 	options ...WaitTreeOption,
 ) *WaitTree {
-
-	var timeout time.Duration
-	var id ID
-	var traceEnabled bool
-	for _, option := range options {
-		switch option := option.(type) {
-		case Timeout:
-			timeout = time.Duration(option)
-		case ID:
-			id = option
-		case Trace:
-			traceEnabled = bool(option)
-		default:
-			panic(fmt.Errorf("unknown option: %T", option))
-		}
-	}
-
-	tree := &WaitTree{
-		ID:           string(id),
-		traceEnabled: traceEnabled,
-		traces:       make(map[string]int),
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	var cancel context.CancelFunc
-	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
-	}
-	tree.Ctx = ctx
-	tree.Cancel = cancel
-	return tree
+	return NewWaitTree(nil, options...)
 }
 
 var errStacktrace = errors.New("stack trace")
