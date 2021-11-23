@@ -1,7 +1,6 @@
 package pr
 
 import (
-	"context"
 	"errors"
 	"io"
 	"sync"
@@ -17,11 +16,9 @@ func TestConsume(
 ) {
 
 	t.Run("normal", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			nil,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -46,11 +43,9 @@ func TestConsume(
 	})
 
 	t.Run("multiple wait", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			nil,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -91,18 +86,17 @@ func TestConsume(
 	})
 
 	t.Run("cancel before put", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
+		wt := NewRootWaitTree()
 		put, wait := Consume(
-			ctx,
+			wt,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
 		)
-		cancel()
+		wt.Cancel()
 		var numPut int
 		for i := 0; i < 8; i++ {
 			if put(i) {
@@ -121,11 +115,9 @@ func TestConsume(
 	})
 
 	t.Run("close before put", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			nil,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -153,11 +145,9 @@ func TestConsume(
 	})
 
 	t.Run("concurrent put and close", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			nil,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -186,11 +176,10 @@ func TestConsume(
 	})
 
 	t.Run("concurrent put and cancel", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		wt := NewRootWaitTree()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			wt,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -209,7 +198,7 @@ func TestConsume(
 				}
 			}()
 		}
-		cancel()
+		wt.Cancel()
 		if err := wait(true); err != nil {
 			t.Fatal(err)
 		}
@@ -220,11 +209,9 @@ func TestConsume(
 	})
 
 	t.Run("fn error", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			nil,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -254,11 +241,9 @@ func TestConsume(
 	})
 
 	t.Run("multiple fn error", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		put, wait := Consume(
-			ctx,
+			nil,
 			128,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -287,12 +272,10 @@ func TestConsume(
 	})
 
 	t.Run("put in func", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		var c int64
 		var put Put
 		put, wait := Consume(
-			ctx,
+			nil,
 			8,
 			func(i int, v any) error {
 				atomic.AddInt64(&c, 1)
@@ -316,7 +299,7 @@ func TestConsume(
 }
 
 func TestConsumeE4Error(t *testing.T) {
-	put, wait := Consume(context.Background(), 8, func(_ int, v any) error {
+	put, wait := Consume(nil, 8, func(_ int, v any) error {
 		return v.(func() error)()
 	})
 	put(func() error {

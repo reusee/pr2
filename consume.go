@@ -1,10 +1,7 @@
 package pr
 
-//TODO use wait tree
-
 import (
 	"container/list"
-	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -25,7 +22,7 @@ type BacklogSize int
 func (_ BacklogSize) IsConsumeOption() {}
 
 func Consume(
-	ctx context.Context,
+	parentWt *WaitTree,
 	numThread int,
 	fn func(threadID int, value any) error,
 	options ...ConsumeOption,
@@ -47,14 +44,17 @@ func Consume(
 
 	inCh := make(chan any)
 	outCh := make(chan any)
-	threadWaitGroup := new(sync.WaitGroup)
 	errCh := make(chan error, 1)
 	valueCond := sync.NewCond(new(sync.Mutex))
 	numValue := 0
+	var wt *WaitTree
+	if parentWt == nil {
+		wt = NewRootWaitTree()
+	} else {
+		wt = NewWaitTree(parentWt)
+	}
 
-	threadWaitGroup.Add(1)
-	go func() {
-		defer threadWaitGroup.Done()
+	wt.Go(func() {
 		values := list.New()
 		var c chan any
 	loop:
@@ -77,7 +77,7 @@ func Consume(
 					}
 					values.PushBack(v)
 
-				case <-ctx.Done():
+				case <-wt.Ctx.Done():
 					break loop
 
 				}
@@ -95,7 +95,7 @@ func Consume(
 						values.PushBack(v)
 					}
 
-				case <-ctx.Done():
+				case <-wt.Ctx.Done():
 					break loop
 
 				}
@@ -111,7 +111,7 @@ func Consume(
 
 		close(outCh)
 
-	}()
+	})
 
 	var putLock sync.RWMutex
 	putClosed := false
@@ -140,7 +140,7 @@ func Consume(
 			}
 			return true
 
-		case <-ctx.Done():
+		case <-wt.Ctx.Done():
 			return false
 
 		}
@@ -160,7 +160,7 @@ func Consume(
 
 		if noMorePut {
 			closePut()
-			threadWaitGroup.Wait()
+			wt.Wait()
 		}
 
 		valueCond.L.Lock()
@@ -180,10 +180,8 @@ func Consume(
 
 	for i := 0; i < numThread; i++ {
 		i := i
-		threadWaitGroup.Add(1)
 
-		go func() {
-			defer threadWaitGroup.Done()
+		wt.Go(func() {
 
 			for v := range outCh {
 				err := func() (err error) {
@@ -205,7 +203,7 @@ func Consume(
 				}
 			}
 
-		}()
+		})
 
 	}
 
