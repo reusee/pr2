@@ -77,7 +77,6 @@ func NewWaitTree(
 }
 
 func NewRootWaitTree(
-	ctx context.Context,
 	options ...WaitTreeOption,
 ) *WaitTree {
 	return NewWaitTree(nil, options...)
