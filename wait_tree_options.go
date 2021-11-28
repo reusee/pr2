@@ -1,6 +1,9 @@
 package pr
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type WaitTreeOption interface {
 	IsWaitTreeOption()
@@ -17,3 +20,7 @@ func (_ ID) IsWaitTreeOption() {}
 type Trace bool
 
 func (_ Trace) IsWaitTreeOption() {}
+
+type BackgroundCtx func() context.Context
+
+func (_ BackgroundCtx) IsWaitTreeOption() {}

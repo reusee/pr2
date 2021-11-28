@@ -30,6 +30,7 @@ func NewWaitTree(
 	var timeout time.Duration
 	var id ID
 	var traceEnabled bool
+	var backgroundCtx context.Context
 	for _, option := range options {
 		switch option := option.(type) {
 		case Timeout:
@@ -38,6 +39,8 @@ func NewWaitTree(
 			id = option
 		case Trace:
 			traceEnabled = bool(option)
+		case BackgroundCtx:
+			backgroundCtx = option()
 		default:
 			panic(fmt.Errorf("unknown option: %T", option))
 		}
@@ -65,10 +68,13 @@ func NewWaitTree(
 			parentDone()
 		}()
 	} else {
+		if backgroundCtx == nil {
+			backgroundCtx = context.Background()
+		}
 		if timeout > 0 {
-			ctx, cancel = context.WithTimeout(context.Background(), timeout)
+			ctx, cancel = context.WithTimeout(backgroundCtx, timeout)
 		} else {
-			ctx, cancel = context.WithCancel(context.Background())
+			ctx, cancel = context.WithCancel(backgroundCtx)
 		}
 		tree.Ctx = ctx
 		tree.Cancel = cancel
