@@ -48,17 +48,14 @@ func TestBytesPoolRC(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
 				bs, put, inc := pool.GetRC()
+				defer put()
 				nRef := rand.Intn(16)
 				for i := 0; i < nRef; i++ {
 					inc()
 				}
 				defer func() {
-					if nRef == 0 {
+					for i := 0; i < nRef; i++ {
 						put()
-					} else {
-						for i := 0; i < nRef; i++ {
-							put()
-						}
 					}
 				}()
 				binary.PutUvarint(*bs.(*[]byte), uint64(i))

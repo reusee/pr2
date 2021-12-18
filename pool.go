@@ -48,12 +48,14 @@ func NewPool(
 			},
 
 			PutRC: func() bool {
-				if c := atomic.AddInt32(&pool.pool[i].Refs, -1); c <= 0 {
+				if c := atomic.AddInt32(&pool.pool[i].Refs, -1); c == 0 {
 					if pool.LogCallers {
 						pool.Callers[i] = nil
 					}
 					atomic.StoreUint32(&pool.pool[i].Taken, 0)
 					return true
+				} else if c < 0 {
+					panic("bad put")
 				}
 				return false
 			},
@@ -103,6 +105,7 @@ func (p *Pool) GetRC() (
 			value = p.pool[idx].Value
 			put = p.pool[idx].PutRC
 			incRef = p.pool[idx].IncRef
+			p.pool[idx].Refs = 1
 			return
 		}
 	}
