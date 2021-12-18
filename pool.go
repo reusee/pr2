@@ -50,19 +50,21 @@ func NewPool(
 }
 
 func (p *Pool) Get() (value any, put func() bool) {
-	idx := atomic.AddInt32(&p.n, 1) % p.capacity
-	if atomic.CompareAndSwapInt32(&p.pool[idx].Taken, 0, 1) {
-		if p.LogCallers {
-			stack := make([]byte, 8*1024)
-			runtime.Stack(stack, false)
-			p.Callers[idx] = stack
+	for i := 0; i < 4; i++ {
+		idx := atomic.AddInt32(&p.n, 1) % p.capacity
+		if atomic.CompareAndSwapInt32(&p.pool[idx].Taken, 0, 1) {
+			if p.LogCallers {
+				stack := make([]byte, 8*1024)
+				runtime.Stack(stack, false)
+				p.Callers[idx] = stack
+			}
+			value = p.pool[idx].Value
+			put = p.pool[idx].Put
+			return
 		}
-		value = p.pool[idx].Value
-		put = p.pool[idx].Put
-	} else {
-		value = p.newFunc()
-		put = noopPut
 	}
+	value = p.newFunc()
+	put = noopPut
 	return
 }
 
