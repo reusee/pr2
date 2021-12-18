@@ -8,7 +8,7 @@ import (
 
 type Pool struct {
 	newFunc    func() any
-	pool       []*_PoolElem
+	pool       []_PoolElem
 	Callers    [][]byte
 	capacity   int32
 	n          int32
@@ -18,6 +18,7 @@ type Pool struct {
 type _PoolElem struct {
 	Value any
 	Taken int32
+	Put   func() bool
 }
 
 func NewPool(
@@ -31,8 +32,16 @@ func NewPool(
 	}
 
 	for i := int32(0); i < capacity; i++ {
-		pool.pool = append(pool.pool, &_PoolElem{
+		i := i
+		pool.pool = append(pool.pool, _PoolElem{
 			Value: newFunc(),
+			Put: func() bool {
+				if pool.LogCallers {
+					pool.Callers[i] = nil
+				}
+				atomic.StoreInt32(&pool.pool[i].Taken, 0)
+				return true
+			},
 		})
 	}
 	pool.Callers = make([][]byte, capacity)
@@ -42,28 +51,23 @@ func NewPool(
 
 func (p *Pool) Get() (value any, put func() bool) {
 	idx := atomic.AddInt32(&p.n, 1) % p.capacity
-	elem := p.pool[idx]
-	if atomic.CompareAndSwapInt32(&elem.Taken, 0, 1) {
+	if atomic.CompareAndSwapInt32(&p.pool[idx].Taken, 0, 1) {
 		if p.LogCallers {
 			stack := make([]byte, 8*1024)
 			runtime.Stack(stack, false)
 			p.Callers[idx] = stack
 		}
-		value = elem.Value
-		put = func() bool {
-			if p.LogCallers {
-				p.Callers[idx] = nil
-			}
-			atomic.StoreInt32(&elem.Taken, 0)
-			return true
-		}
+		value = p.pool[idx].Value
+		put = p.pool[idx].Put
 	} else {
 		value = p.newFunc()
-		put = func() bool {
-			return false
-		}
+		put = noopPut
 	}
 	return
+}
+
+func noopPut() bool {
+	return false
 }
 
 func (p *Pool) Getter() (
