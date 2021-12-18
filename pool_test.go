@@ -2,6 +2,7 @@ package pr
 
 import (
 	"encoding/binary"
+	"math/rand"
 	"sync"
 	"testing"
 )
@@ -21,6 +22,45 @@ func TestBytesPool(t *testing.T) {
 			for j := 0; j < 200; j++ {
 				bs, put := pool.Get()
 				defer put()
+				binary.PutUvarint(*bs.(*[]byte), uint64(i))
+			}
+		}()
+	}
+	wg.Wait()
+	for _, caller := range pool.Callers {
+		if len(caller) > 0 {
+			t.Fatalf("not put: %s\n", caller)
+		}
+	}
+}
+
+func TestBytesPoolRC(t *testing.T) {
+	pool := NewPool(8, func() any {
+		bs := make([]byte, 8)
+		return &bs
+	})
+	pool.LogCallers = true
+	wg := new(sync.WaitGroup)
+	for i := 0; i < 200; i++ {
+		wg.Add(1)
+		i := i
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				bs, put, inc := pool.GetRC()
+				nRef := rand.Intn(16)
+				for i := 0; i < nRef; i++ {
+					inc()
+				}
+				defer func() {
+					if nRef == 0 {
+						put()
+					} else {
+						for i := 0; i < nRef; i++ {
+							put()
+						}
+					}
+				}()
 				binary.PutUvarint(*bs.(*[]byte), uint64(i))
 			}
 		}()
