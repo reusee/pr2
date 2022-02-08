@@ -20,14 +20,14 @@ func TestConsume(
 		put, wait := Consume(
 			nil,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
 		)
 		var numPut int64
 		for i := 0; i < 8; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -47,7 +47,7 @@ func TestConsume(
 		put, wait := Consume(
 			nil,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
@@ -55,7 +55,7 @@ func TestConsume(
 
 		var numPut int64
 		for i := 0; i < 8; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -70,7 +70,7 @@ func TestConsume(
 		}
 
 		for i := 0; i < 8; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -91,7 +91,7 @@ func TestConsume(
 		put, wait := Consume(
 			wt,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
@@ -99,7 +99,7 @@ func TestConsume(
 		wt.Cancel()
 		var numPut int
 		for i := 0; i < 8; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -119,7 +119,7 @@ func TestConsume(
 		put, wait := Consume(
 			nil,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
@@ -129,7 +129,7 @@ func TestConsume(
 		}
 		var numPut int64
 		for i := 0; i < 8; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -149,7 +149,7 @@ func TestConsume(
 		put, wait := Consume(
 			nil,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
@@ -161,7 +161,7 @@ func TestConsume(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if put(i) {
+				if put(int64(i)) {
 					atomic.AddInt64(&numPut, 1)
 				}
 			}()
@@ -181,7 +181,7 @@ func TestConsume(
 		put, wait := Consume(
 			wt,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
 				return nil
 			},
@@ -193,7 +193,7 @@ func TestConsume(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if put(i) {
+				if put(int64(i)) {
 					atomic.AddInt64(&numPut, 1)
 				}
 			}()
@@ -213,9 +213,9 @@ func TestConsume(
 		put, wait := Consume(
 			nil,
 			8,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
-				if v.(int) == 3 {
+				if v == 3 {
 					return errors.New("foo")
 				}
 				return nil
@@ -223,7 +223,7 @@ func TestConsume(
 		)
 		var numPut int64
 		for i := 0; i < 8; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -245,9 +245,9 @@ func TestConsume(
 		put, wait := Consume(
 			nil,
 			128,
-			func(i int, v any) error {
+			func(i int, v int64) error {
 				atomic.AddInt64(&c, 1)
-				if v.(int) > 1 {
+				if v > 1 {
 					return errors.New("foo")
 				}
 				return nil
@@ -255,7 +255,7 @@ func TestConsume(
 		)
 		var numPut int64
 		for i := 0; i < 128; i++ {
-			if put(i) {
+			if put(int64(i)) {
 				numPut++
 			}
 		}
@@ -273,13 +273,12 @@ func TestConsume(
 
 	t.Run("put in func", func(t *testing.T) {
 		var c int64
-		var put Put
+		var put Put[int64]
 		put, wait := Consume(
 			nil,
 			8,
-			func(i int, v any) error {
+			func(i int, n int64) error {
 				atomic.AddInt64(&c, 1)
-				n := v.(int)
 				if n == 0 {
 					return nil
 				}
@@ -299,8 +298,8 @@ func TestConsume(
 }
 
 func TestConsumeE4Error(t *testing.T) {
-	put, wait := Consume(nil, 8, func(_ int, v any) error {
-		return v.(func() error)()
+	put, wait := Consume(nil, 8, func(_ int, v func() error) error {
+		return v()
 	})
 	put(func() error {
 		return func() error {
