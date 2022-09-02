@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/reusee/e4"
+	"github.com/reusee/e5"
 )
 
 type WaitTree struct {
@@ -93,13 +93,13 @@ var errStacktrace = errors.New("stack trace")
 func (t *WaitTree) Add() (done func()) {
 	select {
 	case <-t.Ctx.Done():
-		e4.Throw(context.Canceled)
+		e5.Throw(context.Canceled)
 	default:
 	}
 	t.wg.Add(1)
 	var stack string
 	if t.traceEnabled {
-		stack = e4.WrapStacktrace(errStacktrace).Error()
+		stack = e5.WrapStacktrace(errStacktrace).Error()
 		t.l.Lock()
 		t.traces[stack]++
 		t.l.Unlock()

@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/reusee/e4"
+	"github.com/reusee/e5"
 )
 
 func TestWaitTree(t *testing.T) {
@@ -74,7 +74,7 @@ func TestWaitTree(t *testing.T) {
 					t.Fatal()
 				}
 			}()
-			defer e4.Handle(&err)
+			defer e5.Handle(&err)
 			tree.Add()
 		}()
 	})

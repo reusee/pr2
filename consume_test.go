@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reusee/e4"
+	"github.com/reusee/e5"
 )
 
 func TestConsume(
@@ -303,7 +303,7 @@ func TestConsumeE4Error(t *testing.T) {
 	})
 	put(func() error {
 		return func() error {
-			e4.Check(io.EOF)
+			e5.Check(io.EOF)
 			return nil
 		}()
 	})

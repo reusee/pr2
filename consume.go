@@ -6,7 +6,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/reusee/e4"
+	"github.com/reusee/e5"
 )
 
 type Put[T any] func(T) bool
@@ -185,7 +185,7 @@ func Consume[T any](
 
 			for v := range outCh {
 				err := func() (err error) {
-					defer e4.Handle(&err)
+					defer e5.Handle(&err)
 					return fn(i, v)
 				}()
 				if err != nil {
