@@ -15,9 +15,11 @@ type WaitGroup struct {
 	ctx       context.Context
 	wg        *sync.WaitGroup
 	cancelCtx context.CancelFunc
+	parent    *WaitGroup
 }
 
 func newWaitGroup(
+	parent *WaitGroup,
 	ctx context.Context,
 	cancel context.CancelFunc,
 ) *WaitGroup {
@@ -25,6 +27,7 @@ func newWaitGroup(
 		ctx:       ctx,
 		wg:        new(sync.WaitGroup),
 		cancelCtx: cancel,
+		parent:    parent,
 	}
 }
 
@@ -41,12 +44,12 @@ func WithWaitGroup(
 	} else {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
-		parentWaitGroup = newWaitGroup(ctx, cancel)
+		parentWaitGroup = newWaitGroup(nil, ctx, cancel)
 	}
 	parentWaitGroup.wg.Add(1)
 
 	newCtx, cancel := context.WithCancel(ctx)
-	waitGroup := newWaitGroup(newCtx, cancel)
+	waitGroup := newWaitGroup(parentWaitGroup, newCtx, cancel)
 	newCtx = context.WithValue(newCtx, WaitGroupKey, waitGroup)
 
 	go func() {
@@ -87,4 +90,8 @@ func (w *WaitGroup) Go(fn func()) {
 		defer done()
 		fn()
 	}()
+}
+
+func (w *WaitGroup) Parent() *WaitGroup {
+	return w.parent
 }
