@@ -9,44 +9,44 @@ import (
 	"github.com/reusee/e5"
 )
 
-func TestWaitTree(t *testing.T) {
+func TestWaitGroup(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		tree := NewRootWaitTree()
+		ctx, wg := WithWaitGroup(context.Background())
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
-			tree.Go(func() {
-				<-tree.Ctx.Done()
+			wg.Go(func() {
+				<-ctx.Done()
 				atomic.AddInt64(&c, 1)
 			})
 		}
-		tree.Cancel()
-		tree.Wait()
+		wg.Cancel()
+		wg.Wait()
 		if c != int64(n) {
 			t.Fatal()
 		}
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		tree := NewRootWaitTree()
+		ctx, wg := WithWaitGroup(context.Background())
 		var c int64
 		n := 128
 		m := 8
 		for i := 0; i < m; i++ {
-			tree1 := NewWaitTree(tree)
+			subCtx, subWg := WithWaitGroup(ctx)
 			go func() {
 				for i := 0; i < n; i++ {
-					tree1.Go(func() {
-						<-tree1.Ctx.Done()
+					subWg.Go(func() {
+						<-subCtx.Done()
 						atomic.AddInt64(&c, 1)
 					})
 				}
-				tree1.Cancel()
-				tree1.Wait()
+				subWg.Cancel()
+				subWg.Wait()
 			}()
 		}
-		tree.Wait()
+		wg.Wait()
 		if c != int64(n*m) {
 			t.Fatal()
 		}
@@ -54,12 +54,12 @@ func TestWaitTree(t *testing.T) {
 
 	t.Run("cancel", func(t *testing.T) {
 		var num int
-		tree := NewWaitTree(nil)
-		tree.Go(func() {
-			<-tree.Ctx.Done()
+		ctx, wg := WithWaitGroup(context.Background())
+		wg.Go(func() {
+			<-ctx.Done()
 			num++
 		})
-		tree.Cancel()
+		wg.Cancel()
 		func() {
 			var err error
 			defer func() {
@@ -69,13 +69,13 @@ func TestWaitTree(t *testing.T) {
 				if !errors.Is(err, context.Canceled) {
 					t.Fatal()
 				}
-				tree.Wait()
+				wg.Wait()
 				if num != 1 {
 					t.Fatal()
 				}
 			}()
 			defer e5.Handle(&err)
-			tree.Add()
+			wg.Add()
 		}()
 	})
 

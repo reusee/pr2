@@ -2,6 +2,7 @@ package pr
 
 import (
 	"container/list"
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -19,10 +20,10 @@ type ConsumeOption interface {
 
 type BacklogSize int
 
-func (_ BacklogSize) IsConsumeOption() {}
+func (BacklogSize) IsConsumeOption() {}
 
 func Consume[T any](
-	parentWt *WaitTree,
+	ctx context.Context,
 	numThread int,
 	fn func(threadID int, value T) error,
 	options ...ConsumeOption,
@@ -47,14 +48,9 @@ func Consume[T any](
 	errCh := make(chan error, 1)
 	valueCond := sync.NewCond(new(sync.Mutex))
 	numValue := 0
-	var wt *WaitTree
-	if parentWt == nil {
-		wt = NewRootWaitTree()
-	} else {
-		wt = NewWaitTree(parentWt)
-	}
+	ctx, wg := WithWaitGroup(ctx)
 
-	wt.Go(func() {
+	wg.Go(func() {
 		values := list.New()
 		var c chan T
 	loop:
@@ -77,7 +73,7 @@ func Consume[T any](
 					}
 					values.PushBack(v)
 
-				case <-wt.Ctx.Done():
+				case <-ctx.Done():
 					break loop
 
 				}
@@ -95,7 +91,7 @@ func Consume[T any](
 						values.PushBack(v)
 					}
 
-				case <-wt.Ctx.Done():
+				case <-ctx.Done():
 					break loop
 
 				}
@@ -140,7 +136,7 @@ func Consume[T any](
 			}
 			return true
 
-		case <-wt.Ctx.Done():
+		case <-ctx.Done():
 			return false
 
 		}
@@ -160,7 +156,7 @@ func Consume[T any](
 
 		if noMorePut {
 			closePut()
-			wt.Wait()
+			wg.Wait()
 		}
 
 		valueCond.L.Lock()
@@ -181,7 +177,7 @@ func Consume[T any](
 	for i := 0; i < numThread; i++ {
 		i := i
 
-		wt.Go(func() {
+		wg.Go(func() {
 
 			for v := range outCh {
 				err := func() (err error) {
