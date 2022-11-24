@@ -54,6 +54,13 @@ func NewWaitGroup(
 	return ctx, wg
 }
 
+func GetWaitGroup(ctx context.Context) *WaitGroup {
+	if v := ctx.Value(WaitGroupKey); v != nil {
+		return v.(*WaitGroup)
+	}
+	return nil
+}
+
 func (w *WaitGroup) Cancel() {
 	w.cancel()
 }

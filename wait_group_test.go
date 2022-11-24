@@ -79,4 +79,17 @@ func TestWaitGroup(t *testing.T) {
 		}()
 	})
 
+	t.Run("get", func(t *testing.T) {
+		ctx, wg := NewWaitGroup(context.Background())
+		wg2 := GetWaitGroup(ctx)
+		if wg2 != wg {
+			t.Fatal()
+		}
+
+		wg2 = GetWaitGroup(context.Background())
+		if wg2 != nil {
+			t.Fatal()
+		}
+	})
+
 }
