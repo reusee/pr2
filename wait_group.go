@@ -3,6 +3,7 @@ package pr2
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/reusee/e5"
 )
@@ -17,12 +18,7 @@ type WaitGroup struct {
 	cancel context.CancelFunc
 }
 
-func NewWaitGroup(
-	ctx context.Context,
-) (
-	context.Context,
-	*WaitGroup,
-) {
+func NewWaitGroup(ctx context.Context) *WaitGroup {
 
 	if v := ctx.Value(WaitGroupKey); v != nil {
 		// if there is parent wait group, derive from it
@@ -40,7 +36,7 @@ func NewWaitGroup(
 			wg.wg.Wait()
 			parentWaitGroup.wg.Done()
 		}()
-		return ctx, wg
+		return wg
 	}
 
 	// new root wait group
@@ -51,7 +47,7 @@ func NewWaitGroup(
 	}
 	ctx = context.WithValue(ctx, WaitGroupKey, wg)
 	wg.ctx = ctx
-	return ctx, wg
+	return wg
 }
 
 func GetWaitGroup(ctx context.Context) *WaitGroup {
@@ -84,12 +80,22 @@ func (w *WaitGroup) Wait() {
 	w.wg.Wait()
 }
 
+var _ context.Context = new(WaitGroup)
+
 func (w *WaitGroup) Done() <-chan struct{} {
 	return w.ctx.Done()
 }
 
 func (w *WaitGroup) Err() error {
 	return w.ctx.Err()
+}
+
+func (w *WaitGroup) Deadline() (deadline time.Time, ok bool) {
+	return w.ctx.Deadline()
+}
+
+func (w *WaitGroup) Value(key any) any {
+	return w.ctx.Value(key)
 }
 
 func (w *WaitGroup) Go(fn func()) {

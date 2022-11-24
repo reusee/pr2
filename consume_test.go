@@ -88,9 +88,9 @@ func TestConsume(
 
 	t.Run("cancel before put", func(t *testing.T) {
 		var c int64
-		ctx, wg := NewWaitGroup(context.Background())
+		wg := NewWaitGroup(context.Background())
 		put, wait := Consume(
-			ctx,
+			wg,
 			8,
 			func(_ int, _ int64) error {
 				atomic.AddInt64(&c, 1)
@@ -177,10 +177,10 @@ func TestConsume(
 	})
 
 	t.Run("concurrent put and cancel", func(t *testing.T) {
-		ctx, waitGroup := NewWaitGroup(context.Background())
+		waitGroup := NewWaitGroup(context.Background())
 		var c int64
 		put, wait := Consume(
-			ctx,
+			waitGroup,
 			8,
 			func(_ int, _ int64) error {
 				atomic.AddInt64(&c, 1)

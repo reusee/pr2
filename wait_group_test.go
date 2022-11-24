@@ -12,7 +12,7 @@ import (
 func TestWaitGroup(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		_, wg := NewWaitGroup(context.Background())
+		wg := NewWaitGroup(context.Background())
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
@@ -29,16 +29,16 @@ func TestWaitGroup(t *testing.T) {
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		ctx, wg := NewWaitGroup(context.Background())
+		wg := NewWaitGroup(context.Background())
 		var c int64
 		n := 128
 		m := 8
 		for i := 0; i < m; i++ {
-			subCtx, subWg := NewWaitGroup(ctx)
+			subWg := NewWaitGroup(wg)
 			go func() {
 				for i := 0; i < n; i++ {
 					subWg.Go(func() {
-						<-subCtx.Done()
+						<-subWg.Done()
 						atomic.AddInt64(&c, 1)
 					})
 				}
@@ -54,9 +54,9 @@ func TestWaitGroup(t *testing.T) {
 
 	t.Run("cancel", func(t *testing.T) {
 		var num int
-		ctx, wg := NewWaitGroup(context.Background())
+		wg := NewWaitGroup(context.Background())
 		wg.Go(func() {
-			<-ctx.Done()
+			<-wg.Done()
 			num++
 		})
 		wg.Cancel()
@@ -84,8 +84,8 @@ func TestWaitGroup(t *testing.T) {
 	})
 
 	t.Run("get", func(t *testing.T) {
-		ctx, wg := NewWaitGroup(context.Background())
-		wg2 := GetWaitGroup(ctx)
+		wg := NewWaitGroup(context.Background())
+		wg2 := GetWaitGroup(wg)
 		if wg2 != wg {
 			t.Fatal()
 		}
