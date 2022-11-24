@@ -88,6 +88,10 @@ func (w *WaitGroup) Done() <-chan struct{} {
 	return w.ctx.Done()
 }
 
+func (w *WaitGroup) Err() error {
+	return w.ctx.Err()
+}
+
 func (w *WaitGroup) Go(fn func()) {
 	done := w.Add()
 	go func() {

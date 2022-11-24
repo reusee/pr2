@@ -60,6 +60,10 @@ func TestWaitGroup(t *testing.T) {
 			num++
 		})
 		wg.Cancel()
+		err := wg.Err()
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal()
+		}
 		func() {
 			var err error
 			defer func() {
