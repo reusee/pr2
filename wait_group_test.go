@@ -12,7 +12,7 @@ import (
 func TestWaitGroup(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		ctx, wg := WithWaitGroup(context.Background())
+		ctx, wg := NewWaitGroup(context.Background())
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
@@ -29,12 +29,12 @@ func TestWaitGroup(t *testing.T) {
 	})
 
 	t.Run("tree", func(t *testing.T) {
-		ctx, wg := WithWaitGroup(context.Background())
+		ctx, wg := NewWaitGroup(context.Background())
 		var c int64
 		n := 128
 		m := 8
 		for i := 0; i < m; i++ {
-			subCtx, subWg := WithWaitGroup(ctx)
+			subCtx, subWg := NewWaitGroup(ctx)
 			go func() {
 				for i := 0; i < n; i++ {
 					subWg.Go(func() {
@@ -54,7 +54,7 @@ func TestWaitGroup(t *testing.T) {
 
 	t.Run("cancel", func(t *testing.T) {
 		var num int
-		ctx, wg := WithWaitGroup(context.Background())
+		ctx, wg := NewWaitGroup(context.Background())
 		wg.Go(func() {
 			<-ctx.Done()
 			num++

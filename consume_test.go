@@ -88,7 +88,7 @@ func TestConsume(
 
 	t.Run("cancel before put", func(t *testing.T) {
 		var c int64
-		ctx, wg := WithWaitGroup(context.Background())
+		ctx, wg := NewWaitGroup(context.Background())
 		put, wait := Consume(
 			ctx,
 			8,
@@ -177,7 +177,7 @@ func TestConsume(
 	})
 
 	t.Run("concurrent put and cancel", func(t *testing.T) {
-		ctx, waitGroup := WithWaitGroup(context.Background())
+		ctx, waitGroup := NewWaitGroup(context.Background())
 		var c int64
 		put, wait := Consume(
 			ctx,

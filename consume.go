@@ -48,7 +48,7 @@ func Consume[T any](
 	errCh := make(chan error, 1)
 	valueCond := sync.NewCond(new(sync.Mutex))
 	numValue := 0
-	ctx, wg := WithWaitGroup(ctx)
+	ctx, wg := NewWaitGroup(ctx)
 
 	wg.Go(func() {
 		values := list.New()

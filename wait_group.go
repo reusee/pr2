@@ -12,57 +12,50 @@ type waitGroupKey struct{}
 var WaitGroupKey = waitGroupKey{}
 
 type WaitGroup struct {
-	ctx       context.Context
-	wg        *sync.WaitGroup
-	cancelCtx context.CancelFunc
-	parent    *WaitGroup
+	ctx    context.Context
+	wg     *sync.WaitGroup
+	cancel context.CancelFunc
 }
 
-func newWaitGroup(
-	parent *WaitGroup,
-	ctx context.Context,
-	cancel context.CancelFunc,
-) *WaitGroup {
-	return &WaitGroup{
-		ctx:       ctx,
-		wg:        new(sync.WaitGroup),
-		cancelCtx: cancel,
-		parent:    parent,
-	}
-}
-
-func WithWaitGroup(
+func NewWaitGroup(
 	ctx context.Context,
 ) (
-	newCtx context.Context,
-	wg *WaitGroup,
+	context.Context,
+	*WaitGroup,
 ) {
 
-	var parentWaitGroup *WaitGroup
 	if v := ctx.Value(WaitGroupKey); v != nil {
-		parentWaitGroup = v.(*WaitGroup)
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
-		parentWaitGroup = newWaitGroup(nil, ctx, cancel)
+		// if there is parent wait group, derive from it
+		parentWaitGroup := v.(*WaitGroup)
+		parentWaitGroup.wg.Add(1)
+		ctx, cancel := context.WithCancel(ctx)
+		wg := &WaitGroup{
+			wg:     new(sync.WaitGroup),
+			cancel: cancel,
+		}
+		ctx = context.WithValue(ctx, WaitGroupKey, wg)
+		wg.ctx = ctx
+		go func() {
+			<-ctx.Done()
+			wg.wg.Wait()
+			parentWaitGroup.wg.Done()
+		}()
+		return ctx, wg
 	}
-	parentWaitGroup.wg.Add(1)
 
-	newCtx, cancel := context.WithCancel(ctx)
-	waitGroup := newWaitGroup(parentWaitGroup, newCtx, cancel)
-	newCtx = context.WithValue(newCtx, WaitGroupKey, waitGroup)
-
-	go func() {
-		<-newCtx.Done()
-		waitGroup.wg.Wait()
-		parentWaitGroup.wg.Done()
-	}()
-
-	return newCtx, waitGroup
+	// new root wait group
+	ctx, cancel := context.WithCancel(ctx)
+	wg := &WaitGroup{
+		wg:     new(sync.WaitGroup),
+		cancel: cancel,
+	}
+	ctx = context.WithValue(ctx, WaitGroupKey, wg)
+	wg.ctx = ctx
+	return ctx, wg
 }
 
 func (w *WaitGroup) Cancel() {
-	w.cancelCtx()
+	w.cancel()
 }
 
 func (w *WaitGroup) Add() (done func()) {
@@ -90,8 +83,4 @@ func (w *WaitGroup) Go(fn func()) {
 		defer done()
 		fn()
 	}()
-}
-
-func (w *WaitGroup) Parent() *WaitGroup {
-	return w.parent
 }
