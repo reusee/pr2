@@ -12,12 +12,12 @@ import (
 func TestWaitGroup(t *testing.T) {
 
 	t.Run("single", func(t *testing.T) {
-		ctx, wg := NewWaitGroup(context.Background())
+		_, wg := NewWaitGroup(context.Background())
 		n := 128
 		var c int64
 		for i := 0; i < n; i++ {
 			wg.Go(func() {
-				<-ctx.Done()
+				<-wg.Done()
 				atomic.AddInt64(&c, 1)
 			})
 		}

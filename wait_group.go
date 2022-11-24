@@ -84,6 +84,10 @@ func (w *WaitGroup) Wait() {
 	w.wg.Wait()
 }
 
+func (w *WaitGroup) Done() <-chan struct{} {
+	return w.ctx.Done()
+}
+
 func (w *WaitGroup) Go(fn func()) {
 	done := w.Add()
 	go func() {
