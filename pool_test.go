@@ -83,7 +83,7 @@ func BenchmarkBytesPool(b *testing.B) {
 }
 
 func BenchmarkParallelBytesPool(b *testing.B) {
-	pool := NewPool(8, func() any {
+	pool := NewPool(1024, func() any {
 		bs := make([]byte, 8)
 		return &bs
 	})

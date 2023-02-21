@@ -4,14 +4,14 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	_ "unsafe"
 )
 
 type Pool[T any] struct {
 	newFunc    func() T
 	pool       []_PoolElem[T]
 	Callers    [][]byte
-	capacity   int32
-	n          int32
+	capacity   uint32
 	LogCallers bool
 }
 
@@ -24,7 +24,7 @@ type _PoolElem[T any] struct {
 }
 
 func NewPool[T any](
-	capacity int32,
+	capacity uint32,
 	newFunc func() T,
 ) *Pool[T] {
 
@@ -33,7 +33,7 @@ func NewPool[T any](
 		newFunc:  newFunc,
 	}
 
-	for i := int32(0); i < capacity; i++ {
+	for i := uint32(0); i < capacity; i++ {
 		i := i
 		pool.pool = append(pool.pool, _PoolElem[T]{
 			Value: newFunc(),
@@ -72,7 +72,7 @@ func (p *Pool[T]) GetRC() (
 	incRef func(),
 ) {
 	for i := 0; i < 4; i++ {
-		idx := atomic.AddInt32(&p.n, 1) % p.capacity
+		idx := fastrand() % p.capacity
 		if atomic.CompareAndSwapUint32(&p.pool[idx].Taken, 0, 1) {
 			if p.LogCallers {
 				stack := make([]byte, 8*1024)
@@ -130,3 +130,6 @@ func (p *Pool[T]) Getter() (
 
 	return
 }
+
+//go:linkname fastrand runtime.fastrand
+func fastrand() uint32
