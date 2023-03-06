@@ -8,12 +8,14 @@ import (
 )
 
 type Pool[T any] struct {
-	newFunc    func() T
+	newFunc    func(put PoolPutFunc) T
 	pool       []_PoolElem[T]
 	Callers    [][]byte
 	capacity   uint32
 	LogCallers bool
 }
+
+type PoolPutFunc = func() bool
 
 type _PoolElem[T any] struct {
 	Taken  uint32
@@ -25,7 +27,7 @@ type _PoolElem[T any] struct {
 
 func NewPool[T any](
 	capacity uint32,
-	newFunc func() T,
+	newFunc func(put PoolPutFunc) T,
 ) *Pool[T] {
 
 	pool := &Pool[T]{
@@ -35,21 +37,22 @@ func NewPool[T any](
 
 	for i := uint32(0); i < capacity; i++ {
 		i := i
-		pool.pool = append(pool.pool, _PoolElem[T]{
-			Value: newFunc(),
-
-			Put: func() bool {
-				if c := atomic.AddInt32(&pool.pool[i].Refs, -1); c == 0 {
-					if pool.LogCallers {
-						pool.Callers[i] = nil
-					}
-					atomic.StoreUint32(&pool.pool[i].Taken, 0)
-					return true
-				} else if c < 0 {
-					panic("bad put")
+		put := func() bool {
+			if c := atomic.AddInt32(&pool.pool[i].Refs, -1); c == 0 {
+				if pool.LogCallers {
+					pool.Callers[i] = nil
 				}
-				return false
-			},
+				atomic.StoreUint32(&pool.pool[i].Taken, 0)
+				return true
+			} else if c < 0 {
+				panic("bad put")
+			}
+			return false
+		}
+		pool.pool = append(pool.pool, _PoolElem[T]{
+			Value: newFunc(put),
+
+			Put: put,
 
 			IncRef: func() {
 				atomic.AddInt32(&pool.pool[i].Refs, 1)
@@ -86,8 +89,8 @@ func (p *Pool[T]) GetRC() (
 			return
 		}
 	}
-	value = p.newFunc()
 	put = noopPut
+	value = p.newFunc(put)
 	incRef = noopIncRef
 	return
 }

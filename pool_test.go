@@ -8,7 +8,7 @@ import (
 )
 
 func TestBytesPool(t *testing.T) {
-	pool := NewPool(8, func() any {
+	pool := NewPool(8, func(_ PoolPutFunc) any {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -35,7 +35,7 @@ func TestBytesPool(t *testing.T) {
 }
 
 func TestBytesPoolRC(t *testing.T) {
-	pool := NewPool(8, func() any {
+	pool := NewPool(8, func(_ PoolPutFunc) any {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -71,7 +71,7 @@ func TestBytesPoolRC(t *testing.T) {
 }
 
 func BenchmarkBytesPool(b *testing.B) {
-	pool := NewPool(8, func() any {
+	pool := NewPool(8, func(_ PoolPutFunc) any {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -83,7 +83,7 @@ func BenchmarkBytesPool(b *testing.B) {
 }
 
 func BenchmarkParallelBytesPool(b *testing.B) {
-	pool := NewPool(1024, func() any {
+	pool := NewPool(1024, func(_ PoolPutFunc) any {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -97,7 +97,7 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 }
 
 func TestGetter(t *testing.T) {
-	pool := NewPool(8, func() any {
+	pool := NewPool(8, func(_ PoolPutFunc) any {
 		bs := make([]byte, 8)
 		return &bs
 	})
