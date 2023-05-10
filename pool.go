@@ -18,8 +18,8 @@ type Pool[T any] struct {
 type PoolPutFunc = func() bool
 
 type _PoolElem[T any] struct {
-	Taken  uint32
-	Refs   int32
+	Taken  atomic.Uint32
+	Refs   atomic.Int32
 	Put    func() bool
 	IncRef func()
 	Value  T
@@ -38,11 +38,11 @@ func NewPool[T any](
 	for i := uint32(0); i < capacity; i++ {
 		i := i
 		put := func() bool {
-			if c := atomic.AddInt32(&pool.pool[i].Refs, -1); c == 0 {
+			if c := pool.pool[i].Refs.Add(-1); c == 0 {
 				if pool.LogCallers {
 					pool.Callers[i] = nil
 				}
-				atomic.StoreUint32(&pool.pool[i].Taken, 0)
+				pool.pool[i].Taken.Store(0)
 				return true
 			} else if c < 0 {
 				panic("bad put")
@@ -55,7 +55,7 @@ func NewPool[T any](
 			Put: put,
 
 			IncRef: func() {
-				atomic.AddInt32(&pool.pool[i].Refs, 1)
+				pool.pool[i].Refs.Add(1)
 			},
 		})
 	}
@@ -75,7 +75,7 @@ func (p *Pool[T]) GetRC(ptr *T) (
 ) {
 	for i := 0; i < 4; i++ {
 		idx := fastrand() % p.capacity
-		if atomic.CompareAndSwapUint32(&p.pool[idx].Taken, 0, 1) {
+		if p.pool[idx].Taken.CompareAndSwap(0, 1) {
 			if p.LogCallers {
 				stack := make([]byte, 8*1024)
 				runtime.Stack(stack, false)
@@ -84,7 +84,7 @@ func (p *Pool[T]) GetRC(ptr *T) (
 			*ptr = p.pool[idx].Value
 			put = p.pool[idx].Put
 			incRef = p.pool[idx].IncRef
-			p.pool[idx].Refs = 1
+			p.pool[idx].Refs.Store(1)
 			return
 		}
 	}
