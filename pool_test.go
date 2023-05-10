@@ -8,7 +8,7 @@ import (
 )
 
 func TestBytesPool(t *testing.T) {
-	pool := NewPool(8, func(_ PoolPutFunc) any {
+	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -20,9 +20,10 @@ func TestBytesPool(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
-				bs, put := pool.Get()
+				var bs *[]byte
+				put := pool.Get(&bs)
 				defer put()
-				binary.PutUvarint(*bs.(*[]byte), uint64(i))
+				binary.PutUvarint(*bs, uint64(i))
 			}
 		}()
 	}
@@ -35,7 +36,7 @@ func TestBytesPool(t *testing.T) {
 }
 
 func TestBytesPoolRC(t *testing.T) {
-	pool := NewPool(8, func(_ PoolPutFunc) any {
+	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -47,7 +48,8 @@ func TestBytesPoolRC(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
-				bs, put, inc := pool.GetRC()
+				var bs *[]byte
+				put, inc := pool.GetRC(&bs)
 				defer put()
 				nRef := rand.Intn(16)
 				for i := 0; i < nRef; i++ {
@@ -58,7 +60,7 @@ func TestBytesPoolRC(t *testing.T) {
 						put()
 					}
 				}()
-				binary.PutUvarint(*bs.(*[]byte), uint64(i))
+				binary.PutUvarint(*bs, uint64(i))
 			}
 		}()
 	}
@@ -71,33 +73,35 @@ func TestBytesPoolRC(t *testing.T) {
 }
 
 func BenchmarkBytesPool(b *testing.B) {
-	pool := NewPool(8, func(_ PoolPutFunc) any {
+	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	})
+	var v *[]byte
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, put := pool.Get()
+		put := pool.Get(&v)
 		put()
 	}
 }
 
 func BenchmarkParallelBytesPool(b *testing.B) {
-	pool := NewPool(1024, func(_ PoolPutFunc) any {
+	pool := NewPool(1024, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	})
+	var v *[]byte
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, put := pool.Get()
+			put := pool.Get(&v)
 			put()
 		}
 	})
 }
 
 func TestGetter(t *testing.T) {
-	pool := NewPool(8, func(_ PoolPutFunc) any {
+	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	})
@@ -111,8 +115,9 @@ func TestGetter(t *testing.T) {
 			get, put := pool.Getter()
 			defer put()
 			for j := 0; j < 200; j++ {
-				v := get()
-				binary.PutUvarint(*v.(*[]byte), uint64(i))
+				var v *[]byte
+				get(&v)
+				binary.PutUvarint(*v, uint64(i))
 			}
 		}()
 	}

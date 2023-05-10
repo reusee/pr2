@@ -64,13 +64,12 @@ func NewPool[T any](
 	return pool
 }
 
-func (p *Pool[T]) Get() (value T, put func() bool) {
-	value, put, _ = p.GetRC()
+func (p *Pool[T]) Get(ptr *T) (put func() bool) {
+	put, _ = p.GetRC(ptr)
 	return
 }
 
-func (p *Pool[T]) GetRC() (
-	value T,
+func (p *Pool[T]) GetRC(ptr *T) (
 	put func() bool,
 	incRef func(),
 ) {
@@ -82,7 +81,7 @@ func (p *Pool[T]) GetRC() (
 				runtime.Stack(stack, false)
 				p.Callers[idx] = stack
 			}
-			value = p.pool[idx].Value
+			*ptr = p.pool[idx].Value
 			put = p.pool[idx].Put
 			incRef = p.pool[idx].IncRef
 			p.pool[idx].Refs = 1
@@ -90,7 +89,7 @@ func (p *Pool[T]) GetRC() (
 		}
 	}
 	put = noopPut
-	value = p.newFunc(put)
+	*ptr = p.newFunc(put)
 	incRef = noopIncRef
 	return
 }
@@ -103,15 +102,15 @@ func noopIncRef() {
 }
 
 func (p *Pool[T]) Getter() (
-	get func() T,
+	get func(*T),
 	putAll func(),
 ) {
 
 	var l sync.Mutex
 	curPut := func() {}
 
-	get = func() T {
-		v, put := p.Get()
+	get = func(ptr *T) {
+		put := p.Get(ptr)
 		l.Lock()
 		cur := curPut
 		newPut := func() {
@@ -120,7 +119,6 @@ func (p *Pool[T]) Getter() (
 		}
 		curPut = newPut
 		l.Unlock()
-		return v
 	}
 
 	putAll = func() {
