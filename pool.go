@@ -1,18 +1,16 @@
 package pr2
 
 import (
-	"runtime"
 	"sync"
 	"sync/atomic"
 	_ "unsafe"
 )
 
 type Pool[T any] struct {
-	newFunc    func(put PoolPutFunc) T
-	pool       []_PoolElem[T]
-	Callers    [][]byte
-	capacity   uint32
-	LogCallers bool
+	newFunc  func(put PoolPutFunc) T
+	pool     []_PoolElem[T]
+	Callers  [][]byte
+	capacity uint32
 }
 
 type PoolPutFunc = func() bool
@@ -38,9 +36,6 @@ func NewPool[T any](
 		i := i
 		put := func() bool {
 			if c := pool.pool[i].Refs.Add(-1); c == 0 {
-				if pool.LogCallers {
-					pool.Callers[i] = nil
-				}
 				return true
 			} else if c < 0 {
 				panic("bad put")
@@ -75,11 +70,6 @@ func (p *Pool[T]) GetRC(ptr *T) (
 	for i := 0; i < 4; i++ {
 		idx := fastrand() % p.capacity
 		if p.pool[idx].Refs.CompareAndSwap(0, 1) {
-			if p.LogCallers {
-				stack := make([]byte, 8*1024)
-				runtime.Stack(stack, false)
-				p.Callers[idx] = stack
-			}
 			*ptr = p.pool[idx].Value
 			put = p.pool[idx].Put
 			incRef = p.pool[idx].IncRef

@@ -13,7 +13,6 @@ func TestBytesPool(t *testing.T) {
 		bs := make([]byte, 8)
 		return &bs
 	})
-	pool.LogCallers = true
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -41,7 +40,6 @@ func TestBytesPoolRC(t *testing.T) {
 		bs := make([]byte, 8)
 		return &bs
 	})
-	pool.LogCallers = true
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -123,7 +121,6 @@ func TestGetter(t *testing.T) {
 		bs := make([]byte, 8)
 		return &bs
 	})
-	pool.LogCallers = true
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
