@@ -93,9 +93,9 @@ func BenchmarkBytesPool(b *testing.B) {
 		bs := make([]byte, 8)
 		return &bs
 	})
-	var v *[]byte
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		var v *[]byte
 		put := pool.Get(&v)
 		put()
 	}
@@ -106,10 +106,10 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 		bs := make([]byte, 8)
 		return &bs
 	})
-	var v *[]byte
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
+			var v *[]byte
 			put := pool.Get(&v)
 			put()
 		}
