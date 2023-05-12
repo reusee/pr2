@@ -72,6 +72,23 @@ func TestBytesPoolRC(t *testing.T) {
 	}
 }
 
+func TestBytesPoolRCOverload(t *testing.T) {
+	pool := NewPool(1, func(put PoolPutFunc) int {
+		return 1
+	})
+	var i int
+	pool.GetRC(&i)
+	var j int
+	put, inc := pool.GetRC(&j)
+	inc()
+	if put() {
+		t.Fatal()
+	}
+	if !put() {
+		t.Fatal()
+	}
+}
+
 func BenchmarkBytesPool(b *testing.B) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)

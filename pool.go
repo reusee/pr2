@@ -71,6 +71,7 @@ func (p *Pool[T]) GetRC(ptr *T) (
 	put func() bool,
 	incRef func(),
 ) {
+
 	for i := 0; i < 4; i++ {
 		idx := fastrand() % p.capacity
 		if p.pool[idx].Refs.CompareAndSwap(0, 1) {
@@ -85,9 +86,23 @@ func (p *Pool[T]) GetRC(ptr *T) (
 			return
 		}
 	}
-	put = noopPut
-	*ptr = p.newFunc(put)
-	incRef = noopIncRef
+
+	var refs atomic.Int32
+	refs.Store(1)
+	put = func() bool {
+		if r := refs.Add(-1); r == 0 {
+			return true
+		} else if r < 0 {
+			panic("bad put")
+		}
+		return false
+	}
+	incRef = func() {
+		refs.Add(1)
+	}
+	value := p.newFunc(put)
+	*ptr = value
+
 	return
 }
 
