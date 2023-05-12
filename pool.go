@@ -106,37 +106,36 @@ func (p *Pool[T]) GetRC(ptr *T) (
 	return
 }
 
-func noopPut() bool {
-	return false
-}
-
-func noopIncRef() {
-}
-
 func (p *Pool[T]) Getter() (
 	get func(*T),
 	putAll func(),
 ) {
 
 	var l sync.Mutex
-	curPut := func() {}
+	var curPut func()
 
 	get = func(ptr *T) {
 		put := p.Get(ptr)
 		l.Lock()
-		cur := curPut
-		newPut := func() {
-			put()
-			cur()
+		if curPut != nil {
+			cur := curPut
+			newPut := func() {
+				put()
+				cur()
+			}
+			curPut = newPut
+		} else {
+			curPut = func() {
+				put()
+			}
 		}
-		curPut = newPut
 		l.Unlock()
 	}
 
 	putAll = func() {
 		l.Lock()
 		put := curPut
-		curPut = func() {}
+		curPut = nil
 		l.Unlock()
 		put()
 	}

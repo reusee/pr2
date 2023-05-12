@@ -2,6 +2,7 @@ package pr2
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -144,4 +145,48 @@ func TestGetter(t *testing.T) {
 			t.Fatalf("not put: %s\n", caller)
 		}
 	}
+}
+
+func TestPoolBadPut(t *testing.T) {
+	pool := NewPool(1, func(put PoolPutFunc) int {
+		return 1
+	})
+	var i int
+	put := pool.Get(&i)
+	put()
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fatal()
+			}
+			if fmt.Sprintf("%v", p) != "bad put" {
+				t.Fatal()
+			}
+		}()
+		put()
+	}()
+}
+
+func TestPoolBadPutRC(t *testing.T) {
+	pool := NewPool(1, func(put PoolPutFunc) int {
+		return 1
+	})
+	var j int
+	pool.Get(&j)
+	var i int
+	put := pool.Get(&i)
+	put()
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fatal()
+			}
+			if fmt.Sprintf("%v", p) != "bad put" {
+				t.Fatal()
+			}
+		}()
+		put()
+	}()
 }
