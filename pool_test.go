@@ -12,7 +12,7 @@ func TestBytesPool(t *testing.T) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	})
+	}, ResetSlice[byte](8))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -34,7 +34,7 @@ func TestBytesPoolRC(t *testing.T) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	})
+	}, ResetSlice[byte](8))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -62,12 +62,13 @@ func TestBytesPoolRC(t *testing.T) {
 }
 
 func TestBytesPoolRCOverload(t *testing.T) {
-	pool := NewPool(1, func(put PoolPutFunc) int {
-		return 1
-	})
-	var i int
+	pool := NewPool(1, func(_ PoolPutFunc) *int {
+		n := 1
+		return &n
+	}, nil)
+	var i *int
 	pool.GetRC(&i)
-	var j int
+	var j *int
 	put, inc := pool.GetRC(&j)
 	inc()
 	if put() {
@@ -82,7 +83,7 @@ func BenchmarkBytesPool(b *testing.B) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	})
+	}, ResetSlice[byte](8))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var v *[]byte
@@ -95,7 +96,7 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 	pool := NewPool(1024, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	})
+	}, ResetSlice[byte](8))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -110,7 +111,7 @@ func TestGetter(t *testing.T) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	})
+	}, ResetSlice[byte](8))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -130,10 +131,11 @@ func TestGetter(t *testing.T) {
 }
 
 func TestPoolBadPut(t *testing.T) {
-	pool := NewPool(1, func(put PoolPutFunc) int {
-		return 1
-	})
-	var i int
+	pool := NewPool(1, func(_ PoolPutFunc) *int {
+		n := 1
+		return &n
+	}, nil)
+	var i *int
 	put := pool.Get(&i)
 	put()
 	func() {
@@ -151,12 +153,13 @@ func TestPoolBadPut(t *testing.T) {
 }
 
 func TestPoolBadPutRC(t *testing.T) {
-	pool := NewPool(1, func(put PoolPutFunc) int {
-		return 1
-	})
-	var j int
+	pool := NewPool(1, func(_ PoolPutFunc) *int {
+		n := 1
+		return &n
+	}, nil)
+	var j *int
 	pool.Get(&j)
-	var i int
+	var i *int
 	put := pool.Get(&i)
 	put()
 	func() {
@@ -171,4 +174,20 @@ func TestPoolBadPutRC(t *testing.T) {
 		}()
 		put()
 	}()
+}
+
+func TestPoolReset(t *testing.T) {
+	pool := NewPool(1, func(_ PoolPutFunc) *[]byte {
+		bs := make([]byte, 8)
+		return &bs
+	}, ResetSlice[byte](8))
+	var ptr *[]byte
+	put := pool.Get(&ptr)
+	*ptr = (*ptr)[:1]
+	put()
+	put = pool.Get(&ptr)
+	if len(*ptr) != 8 {
+		t.Fatal()
+	}
+	put()
 }

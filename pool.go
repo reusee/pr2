@@ -7,7 +7,7 @@ import (
 )
 
 type Pool[T any] struct {
-	newFunc  func(put PoolPutFunc) T
+	newFunc  func(put PoolPutFunc) *T
 	pool     []_PoolElem[T]
 	capacity uint32
 }
@@ -15,15 +15,16 @@ type Pool[T any] struct {
 type PoolPutFunc = func() bool
 
 type _PoolElem[T any] struct {
-	Refs   atomic.Int32
-	Put    func() bool
-	IncRef func()
-	Value  T
+	refs   atomic.Int32
+	put    func() bool
+	incRef func()
+	value  *T
 }
 
 func NewPool[T any](
 	capacity uint32,
-	newFunc func(put PoolPutFunc) T,
+	newFunc func(put PoolPutFunc) *T,
+	resetFunc func(*T),
 ) *Pool[T] {
 
 	pool := &Pool[T]{
@@ -33,21 +34,24 @@ func NewPool[T any](
 
 	for i := uint32(0); i < capacity; i++ {
 		i := i
+		var ptr *T
 		put := func() bool {
-			if c := pool.pool[i].Refs.Add(-1); c == 0 {
+			if c := pool.pool[i].refs.Add(-1); c == 0 {
+				if resetFunc != nil {
+					resetFunc(ptr)
+				}
 				return true
 			} else if c < 0 {
 				panic("bad put")
 			}
 			return false
 		}
+		ptr = newFunc(put)
 		pool.pool = append(pool.pool, _PoolElem[T]{
-			Value: newFunc(put),
-
-			Put: put,
-
-			IncRef: func() {
-				pool.pool[i].Refs.Add(1)
+			value: ptr,
+			put:   put,
+			incRef: func() {
+				pool.pool[i].refs.Add(1)
 			},
 		})
 	}
@@ -55,22 +59,22 @@ func NewPool[T any](
 	return pool
 }
 
-func (p *Pool[T]) Get(ptr *T) (put func() bool) {
+func (p *Pool[T]) Get(ptr **T) (put func() bool) {
 	put, _ = p.GetRC(ptr)
 	return
 }
 
-func (p *Pool[T]) GetRC(ptr *T) (
+func (p *Pool[T]) GetRC(ptr **T) (
 	put func() bool,
 	incRef func(),
 ) {
 
 	for i := 0; i < 4; i++ {
 		idx := fastrand() % p.capacity
-		if p.pool[idx].Refs.CompareAndSwap(0, 1) {
-			*ptr = p.pool[idx].Value
-			put = p.pool[idx].Put
-			incRef = p.pool[idx].IncRef
+		if p.pool[idx].refs.CompareAndSwap(0, 1) {
+			*ptr = p.pool[idx].value
+			put = p.pool[idx].put
+			incRef = p.pool[idx].incRef
 			return
 		}
 	}
@@ -95,14 +99,14 @@ func (p *Pool[T]) GetRC(ptr *T) (
 }
 
 func (p *Pool[T]) Getter() (
-	get func(*T),
+	get func(**T),
 	putAll func(),
 ) {
 
 	var l sync.Mutex
 	var curPut func()
 
-	get = func(ptr *T) {
+	get = func(ptr **T) {
 		put := p.Get(ptr)
 		l.Lock()
 		if curPut != nil {
@@ -129,6 +133,14 @@ func (p *Pool[T]) Getter() (
 	}
 
 	return
+}
+
+func ResetSlice[T any](size int) func(*[]T) {
+	return func(ptr *[]T) {
+		if len(*ptr) != size {
+			*ptr = (*ptr)[:size]
+		}
+	}
 }
 
 //go:linkname fastrand runtime.fastrand
