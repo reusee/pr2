@@ -9,7 +9,6 @@ import (
 type Pool[T any] struct {
 	newFunc  func(put PoolPutFunc) T
 	pool     []_PoolElem[T]
-	Callers  [][]byte
 	capacity uint32
 }
 
@@ -52,7 +51,6 @@ func NewPool[T any](
 			},
 		})
 	}
-	pool.Callers = make([][]byte, capacity)
 
 	return pool
 }

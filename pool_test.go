@@ -28,11 +28,6 @@ func TestBytesPool(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	for _, caller := range pool.Callers {
-		if len(caller) > 0 {
-			t.Fatalf("not put: %s\n", caller)
-		}
-	}
 }
 
 func TestBytesPoolRC(t *testing.T) {
@@ -64,11 +59,6 @@ func TestBytesPoolRC(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	for _, caller := range pool.Callers {
-		if len(caller) > 0 {
-			t.Fatalf("not put: %s\n", caller)
-		}
-	}
 }
 
 func TestBytesPoolRCOverload(t *testing.T) {
@@ -137,11 +127,6 @@ func TestGetter(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	for _, caller := range pool.Callers {
-		if len(caller) > 0 {
-			t.Fatalf("not put: %s\n", caller)
-		}
-	}
 }
 
 func TestPoolBadPut(t *testing.T) {
