@@ -135,10 +135,16 @@ func (p *Pool[T]) Getter() (
 	return
 }
 
-func ResetSlice[T any](size int) func(*[]T) {
+func ResetSlice[T any](size int, capacity int) func(*[]T) {
 	return func(ptr *[]T) {
-		if len(*ptr) != size {
-			*ptr = (*ptr)[:size]
+		if capacity >= 0 {
+			if len(*ptr) != size || cap(*ptr) != capacity {
+				*ptr = (*ptr)[:size:capacity]
+			}
+		} else {
+			if len(*ptr) != size {
+				*ptr = (*ptr)[:size]
+			}
 		}
 	}
 }

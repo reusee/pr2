@@ -12,7 +12,7 @@ func TestBytesPool(t *testing.T) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8))
+	}, ResetSlice[byte](8, -1))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -34,7 +34,7 @@ func TestBytesPoolRC(t *testing.T) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8))
+	}, ResetSlice[byte](8, -1))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -83,7 +83,7 @@ func BenchmarkBytesPool(b *testing.B) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8))
+	}, ResetSlice[byte](8, -1))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var v *[]byte
@@ -96,7 +96,7 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 	pool := NewPool(1024, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8))
+	}, ResetSlice[byte](8, -1))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -111,7 +111,7 @@ func TestGetter(t *testing.T) {
 	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8))
+	}, ResetSlice[byte](8, -1))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -180,7 +180,7 @@ func TestPoolReset(t *testing.T) {
 	pool := NewPool(1, func(_ PoolPutFunc) *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8))
+	}, ResetSlice[byte](8, -1))
 	var ptr *[]byte
 	put := pool.Get(&ptr)
 	*ptr = (*ptr)[:1]
