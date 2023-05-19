@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -190,4 +191,19 @@ func TestPoolReset(t *testing.T) {
 		t.Fatal()
 	}
 	put()
+}
+
+func BenchmarkPoolDrain(b *testing.B) {
+	pool := NewPool(uint32(runtime.NumCPU()), func(_ PoolPutFunc) *[]byte {
+		bs := make([]byte, 8)
+		return &bs
+	}, ResetSlice[byte](8, -1))
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var v *[]byte
+			put := pool.Get(&v)
+			put()
+		}
+	})
 }

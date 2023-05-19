@@ -7,9 +7,11 @@ import (
 )
 
 type Pool[T any] struct {
-	newFunc  func(put PoolPutFunc) *T
-	pool     []_PoolElem[T]
-	capacity uint32
+	l         sync.Mutex
+	newFunc   func(put PoolPutFunc) *T
+	resetFunc func(*T)
+	elems     atomic.Pointer[[]_PoolElem[T]]
+	capacity  uint32
 }
 
 type PoolPutFunc = func() bool
@@ -26,19 +28,31 @@ func NewPool[T any](
 	newFunc func(put PoolPutFunc) *T,
 	resetFunc func(*T),
 ) *Pool[T] {
-
 	pool := &Pool[T]{
-		capacity: capacity,
-		newFunc:  newFunc,
+		capacity:  capacity,
+		newFunc:   newFunc,
+		resetFunc: resetFunc,
 	}
+	pool.allocElems()
+	return pool
+}
 
-	for i := uint32(0); i < capacity; i++ {
+func (p *Pool[T]) allocElems() {
+	cur := p.elems.Load()
+	p.l.Lock()
+	defer p.l.Unlock()
+	if p.elems.Load() != cur {
+		// refreshed
+		return
+	}
+	elems := make([]_PoolElem[T], p.capacity)
+	for i := uint32(0); i < p.capacity; i++ {
 		i := i
 		var ptr *T
 		put := func() bool {
-			if c := pool.pool[i].refs.Add(-1); c == 0 {
-				if resetFunc != nil {
-					resetFunc(ptr)
+			if c := elems[i].refs.Add(-1); c == 0 {
+				if p.resetFunc != nil {
+					p.resetFunc(ptr)
 				}
 				return true
 			} else if c < 0 {
@@ -46,17 +60,16 @@ func NewPool[T any](
 			}
 			return false
 		}
-		ptr = newFunc(put)
-		pool.pool = append(pool.pool, _PoolElem[T]{
+		ptr = p.newFunc(put)
+		elems[i] = _PoolElem[T]{
 			value: ptr,
 			put:   put,
 			incRef: func() {
-				pool.pool[i].refs.Add(1)
+				elems[i].refs.Add(1)
 			},
-		})
+		}
 	}
-
-	return pool
+	p.elems.Store(&elems)
 }
 
 func (p *Pool[T]) Get(ptr **T) (put func() bool) {
@@ -69,33 +82,21 @@ func (p *Pool[T]) GetRC(ptr **T) (
 	incRef func(),
 ) {
 
-	for i := 0; i < 4; i++ {
-		idx := fastrand() % p.capacity
-		if p.pool[idx].refs.CompareAndSwap(0, 1) {
-			*ptr = p.pool[idx].value
-			put = p.pool[idx].put
-			incRef = p.pool[idx].incRef
-			return
+	for {
+		elems := *p.elems.Load()
+		for i := 0; i < 4; i++ {
+			idx := fastrand() % p.capacity
+			if elems[idx].refs.CompareAndSwap(0, 1) {
+				*ptr = elems[idx].value
+				put = elems[idx].put
+				incRef = elems[idx].incRef
+				return
+			}
 		}
+
+		p.allocElems()
 	}
 
-	var refs atomic.Int32
-	refs.Store(1)
-	put = func() bool {
-		if r := refs.Add(-1); r == 0 {
-			return true
-		} else if r < 0 {
-			panic("bad put")
-		}
-		return false
-	}
-	incRef = func() {
-		refs.Add(1)
-	}
-	value := p.newFunc(put)
-	*ptr = value
-
-	return
 }
 
 func (p *Pool[T]) Getter() (
