@@ -33,15 +33,14 @@ func NewPool[T any](
 		newFunc:   newFunc,
 		resetFunc: resetFunc,
 	}
-	pool.allocElems()
+	pool.allocElems(nil)
 	return pool
 }
 
-func (p *Pool[T]) allocElems() {
-	cur := p.elems.Load()
+func (p *Pool[T]) allocElems(old *[]_PoolElem[T]) {
 	p.l.Lock()
 	defer p.l.Unlock()
-	if p.elems.Load() != cur {
+	if old != nil && p.elems.Load() != old {
 		// refreshed
 		return
 	}
@@ -83,8 +82,9 @@ func (p *Pool[T]) GetRC(ptr **T) (
 ) {
 
 	for {
-		elems := *p.elems.Load()
-		for i := 0; i < 4; i++ {
+		cur := p.elems.Load()
+		elems := *cur
+		for i := 0; i < 16; i++ {
 			idx := fastrand() % p.capacity
 			if elems[idx].refs.CompareAndSwap(0, 1) {
 				*ptr = elems[idx].value
@@ -94,7 +94,7 @@ func (p *Pool[T]) GetRC(ptr **T) (
 			}
 		}
 
-		p.allocElems()
+		p.allocElems(cur)
 	}
 
 }
