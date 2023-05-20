@@ -10,7 +10,7 @@ import (
 )
 
 func TestBytesPool(t *testing.T) {
-	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))
@@ -32,7 +32,7 @@ func TestBytesPool(t *testing.T) {
 }
 
 func TestBytesPoolRC(t *testing.T) {
-	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))
@@ -63,7 +63,7 @@ func TestBytesPoolRC(t *testing.T) {
 }
 
 func TestBytesPoolRCOverload(t *testing.T) {
-	pool := NewPool(1, func(_ PoolPutFunc) *int {
+	pool := NewPool(1, func() *int {
 		n := 1
 		return &n
 	}, nil)
@@ -81,7 +81,7 @@ func TestBytesPoolRCOverload(t *testing.T) {
 }
 
 func BenchmarkBytesPool(b *testing.B) {
-	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))
@@ -94,7 +94,7 @@ func BenchmarkBytesPool(b *testing.B) {
 }
 
 func BenchmarkParallelBytesPool(b *testing.B) {
-	pool := NewPool(1024, func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(1024, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))
@@ -109,7 +109,7 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 }
 
 func TestGetter(t *testing.T) {
-	pool := NewPool(8, func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))
@@ -132,7 +132,7 @@ func TestGetter(t *testing.T) {
 }
 
 func TestPoolBadPut(t *testing.T) {
-	pool := NewPool(1, func(_ PoolPutFunc) *int {
+	pool := NewPool(1, func() *int {
 		n := 1
 		return &n
 	}, nil)
@@ -154,7 +154,7 @@ func TestPoolBadPut(t *testing.T) {
 }
 
 func TestPoolBadPutRC(t *testing.T) {
-	pool := NewPool(1, func(_ PoolPutFunc) *int {
+	pool := NewPool(1, func() *int {
 		n := 1
 		return &n
 	}, nil)
@@ -178,7 +178,7 @@ func TestPoolBadPutRC(t *testing.T) {
 }
 
 func TestPoolReset(t *testing.T) {
-	pool := NewPool(1, func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(1, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))
@@ -194,7 +194,7 @@ func TestPoolReset(t *testing.T) {
 }
 
 func BenchmarkPoolDrain(b *testing.B) {
-	pool := NewPool(uint32(runtime.NumCPU()), func(_ PoolPutFunc) *[]byte {
+	pool := NewPool(uint32(runtime.NumCPU()), func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
 	}, ResetSlice[byte](8, -1))

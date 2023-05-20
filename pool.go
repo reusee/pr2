@@ -8,13 +8,11 @@ import (
 
 type Pool[T any] struct {
 	l         sync.Mutex
-	newFunc   func(put PoolPutFunc) *T
+	newFunc   func() *T
 	resetFunc func(*T)
 	elems     atomic.Pointer[[]_PoolElem[T]]
 	capacity  uint32
 }
-
-type PoolPutFunc = func() bool
 
 type _PoolElem[T any] struct {
 	refs   atomic.Int32
@@ -25,7 +23,7 @@ type _PoolElem[T any] struct {
 
 func NewPool[T any](
 	capacity uint32,
-	newFunc func(put PoolPutFunc) *T,
+	newFunc func() *T,
 	resetFunc func(*T),
 ) *Pool[T] {
 	pool := &Pool[T]{
@@ -47,22 +45,20 @@ func (p *Pool[T]) allocElems(old *[]_PoolElem[T]) {
 	elems := make([]_PoolElem[T], p.capacity)
 	for i := uint32(0); i < p.capacity; i++ {
 		i := i
-		var ptr *T
-		put := func() bool {
-			if c := elems[i].refs.Add(-1); c == 0 {
-				if p.resetFunc != nil {
-					p.resetFunc(ptr)
-				}
-				return true
-			} else if c < 0 {
-				panic("bad put")
-			}
-			return false
-		}
-		ptr = p.newFunc(put)
+		ptr := p.newFunc()
 		elems[i] = _PoolElem[T]{
 			value: ptr,
-			put:   put,
+			put: func() bool {
+				if c := elems[i].refs.Add(-1); c == 0 {
+					if p.resetFunc != nil {
+						p.resetFunc(ptr)
+					}
+					return true
+				} else if c < 0 {
+					panic("bad put")
+				}
+				return false
+			},
 			incRef: func() {
 				elems[i].refs.Add(1)
 			},
