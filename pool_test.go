@@ -13,7 +13,7 @@ func TestBytesPool(t *testing.T) {
 	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -35,7 +35,7 @@ func TestBytesPoolRC(t *testing.T) {
 	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -66,7 +66,7 @@ func TestBytesPoolRCOverload(t *testing.T) {
 	pool := NewPool(1, func() *int {
 		n := 1
 		return &n
-	}, nil)
+	})
 	var i *int
 	pool.GetRC(&i)
 	var j *int
@@ -84,7 +84,7 @@ func BenchmarkBytesPool(b *testing.B) {
 	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var v *[]byte
@@ -97,7 +97,7 @@ func BenchmarkParallelBytesPool(b *testing.B) {
 	pool := NewPool(1024, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -112,7 +112,7 @@ func TestGetter(t *testing.T) {
 	pool := NewPool(8, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	wg := new(sync.WaitGroup)
 	for i := 0; i < 200; i++ {
 		wg.Add(1)
@@ -135,7 +135,7 @@ func TestPoolBadPut(t *testing.T) {
 	pool := NewPool(1, func() *int {
 		n := 1
 		return &n
-	}, nil)
+	})
 	var i *int
 	put := pool.Get(&i)
 	put()
@@ -157,7 +157,7 @@ func TestPoolBadPutRC(t *testing.T) {
 	pool := NewPool(1, func() *int {
 		n := 1
 		return &n
-	}, nil)
+	})
 	var j *int
 	pool.Get(&j)
 	var i *int
@@ -181,7 +181,7 @@ func TestPoolReset(t *testing.T) {
 	pool := NewPool(1, func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	var ptr *[]byte
 	put := pool.Get(&ptr)
 	*ptr = (*ptr)[:1]
@@ -197,7 +197,7 @@ func BenchmarkPoolDrain(b *testing.B) {
 	pool := NewPool(uint32(runtime.NumCPU()), func() *[]byte {
 		bs := make([]byte, 8)
 		return &bs
-	}, ResetSlice[byte](8, -1))
+	}).WithReset(ResetSlice[byte](8, -1))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

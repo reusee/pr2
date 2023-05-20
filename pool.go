@@ -24,15 +24,18 @@ type _PoolElem[T any] struct {
 func NewPool[T any](
 	capacity uint32,
 	newFunc func() *T,
-	resetFunc func(*T),
 ) *Pool[T] {
 	pool := &Pool[T]{
-		capacity:  capacity,
-		newFunc:   newFunc,
-		resetFunc: resetFunc,
+		capacity: capacity,
+		newFunc:  newFunc,
 	}
 	pool.allocElems(nil)
 	return pool
+}
+
+func (p *Pool[T]) WithReset(resetFunc func(*T)) *Pool[T] {
+	p.resetFunc = resetFunc
+	return p
 }
 
 func (p *Pool[T]) allocElems(old *[]_PoolElem[T]) {
