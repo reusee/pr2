@@ -7,23 +7,22 @@ import (
 )
 
 type Pool[T any] struct {
-	l         sync.Mutex
-	newFunc   func() *T
-	resetFunc func(*T)
-	elems     atomic.Pointer[[]_PoolElem[T]]
-	capacity  uint32
+	l        sync.Mutex
+	newFunc  func() T
+	elems    atomic.Pointer[[]_PoolElem[T]]
+	capacity uint32
 }
 
 type _PoolElem[T any] struct {
 	refs   atomic.Int32
 	put    func() bool
 	incRef func()
-	value  *T
+	value  T
 }
 
 func NewPool[T any](
 	capacity uint32,
-	newFunc func() *T,
+	newFunc func() T,
 ) *Pool[T] {
 	pool := &Pool[T]{
 		capacity: capacity,
@@ -31,11 +30,6 @@ func NewPool[T any](
 	}
 	pool.allocElems(nil)
 	return pool
-}
-
-func (p *Pool[T]) WithReset(resetFunc func(*T)) *Pool[T] {
-	p.resetFunc = resetFunc
-	return p
 }
 
 func (p *Pool[T]) allocElems(old *[]_PoolElem[T]) {
@@ -53,9 +47,6 @@ func (p *Pool[T]) allocElems(old *[]_PoolElem[T]) {
 			value: ptr,
 			put: func() bool {
 				if c := elems[i].refs.Add(-1); c == 0 {
-					if p.resetFunc != nil {
-						p.resetFunc(ptr)
-					}
 					return true
 				} else if c < 0 {
 					panic("bad put")
@@ -70,12 +61,12 @@ func (p *Pool[T]) allocElems(old *[]_PoolElem[T]) {
 	p.elems.Store(&elems)
 }
 
-func (p *Pool[T]) Get(ptr **T) (put func() bool) {
+func (p *Pool[T]) Get(ptr *T) (put func() bool) {
 	put, _ = p.GetRC(ptr)
 	return
 }
 
-func (p *Pool[T]) GetRC(ptr **T) (
+func (p *Pool[T]) GetRC(ptr *T) (
 	put func() bool,
 	incRef func(),
 ) {
@@ -99,14 +90,14 @@ func (p *Pool[T]) GetRC(ptr **T) (
 }
 
 func (p *Pool[T]) Getter() (
-	get func(**T),
+	get func(*T),
 	putAll func(),
 ) {
 
 	var l sync.Mutex
 	var curPut func()
 
-	get = func(ptr **T) {
+	get = func(ptr *T) {
 		put := p.Get(ptr)
 		l.Lock()
 		if curPut != nil {
@@ -133,20 +124,6 @@ func (p *Pool[T]) Getter() (
 	}
 
 	return
-}
-
-func ResetSlice[T any](size int, capacity int) func(*[]T) {
-	return func(ptr *[]T) {
-		if capacity >= 0 {
-			if len(*ptr) != size || cap(*ptr) != capacity {
-				*ptr = (*ptr)[:size:capacity]
-			}
-		} else {
-			if len(*ptr) != size {
-				*ptr = (*ptr)[:size]
-			}
-		}
-	}
 }
 
 //go:linkname fastrand runtime.fastrand
