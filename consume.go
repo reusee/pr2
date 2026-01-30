@@ -177,17 +177,19 @@ func consumeWorker[T any](
 	fn func(int, T) error,
 ) {
 	for v := range outCh {
-		err := func() (err error) {
-			defer e5.Handle(&err)
-			return fn(id, v)
-		}()
-		if err != nil {
-			select {
-			case errCh <- err:
-			default:
+		func() {
+			defer decrementNumValue(cond, numValue)
+			err := func() (err error) {
+				defer e5.Handle(&err)
+				return fn(id, v)
+			}()
+			if err != nil {
+				select {
+				case errCh <- err:
+				default:
+				}
 			}
-		}
-		decrementNumValue(cond, numValue)
+		}()
 	}
 }
 
@@ -196,6 +198,6 @@ func decrementNumValue(cond *sync.Cond, numValue *int) {
 	defer cond.L.Unlock()
 	*numValue--
 	if *numValue == 0 {
-		cond.Signal()
+		cond.Broadcast()
 	}
 }
