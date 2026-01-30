@@ -169,6 +169,20 @@ func TestPoolBadPutRC(t *testing.T) {
 	}()
 }
 
+func TestPoolGetterStack(t *testing.T) {
+	pool := NewPool(1, func() int {
+		return 42
+	})
+	get, putAll := pool.Getter()
+	n := 100000
+	for i := 0; i < n; i++ {
+		var v int
+		get(&v)
+	}
+	// This would cause a stack overflow with the original implementation
+	putAll()
+}
+
 func BenchmarkPoolDrain(b *testing.B) {
 	pool := NewPool(uint32(runtime.NumCPU()), func() []byte {
 		return make([]byte, 8)

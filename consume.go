@@ -41,6 +41,10 @@ func Consume[T any](
 	wait Wait,
 ) {
 
+	if numThread <= 0 {
+		panic(fmt.Errorf("numThread must be greater than 0: %d", numThread))
+	}
+
 	backlogSize := int(math.MaxInt32)
 
 	for _, option := range options {

@@ -313,3 +313,12 @@ func TestConsumeE4Error(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestConsumeInvalidThreads(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("should panic")
+		}
+	}()
+	Consume(context.Background(), 0, func(int, int) error { return nil })
+}
