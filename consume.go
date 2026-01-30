@@ -10,6 +10,15 @@ import (
 	"github.com/reusee/e5"
 )
 
+const ConsumeTheory = `
+pr2.Consume implements a robust producer-consumer pattern with an internal buffer.
+
+1. Decoupling: Producers use put() to hand off work. Consumers (workers) process work in parallel.
+2. Reliability: All items accepted by put() are guaranteed to be processed, even if the context is cancelled after acceptance.
+3. Resource Management: numValue tracks the total number of items in the system (queued or being processed). wait() allows for flushing (waiting for numValue == 0) or complete shutdown (waiting for goroutines to exit).
+4. Backpressure: backlogSize limits the internal queue, causing put() to block when the system is overloaded.
+`
+
 type Put[T any] func(T) bool
 
 type Wait = func(noMorePut bool) error
@@ -51,62 +60,7 @@ func Consume[T any](
 	wg := NewWaitGroup(ctx)
 
 	wg.Go(func() {
-		values := list.New()
-		var c chan T
-	loop:
-		for {
-
-			c = inCh
-			if values.Len() > backlogSize {
-				c = nil
-			}
-
-			if values.Len() > 0 {
-				select {
-
-				case outCh <- values.Front().Value.(T):
-					values.Remove(values.Front())
-
-				case v, ok := <-c:
-					if !ok {
-						break loop
-					}
-					values.PushBack(v)
-
-				case <-ctx.Done():
-					break loop
-
-				}
-
-			} else {
-				select {
-
-				case v, ok := <-c:
-					if !ok {
-						break loop
-					}
-					select {
-					case outCh <- v:
-					default:
-						values.PushBack(v)
-					}
-
-				case <-ctx.Done():
-					break loop
-
-				}
-			}
-
-		}
-
-		elem := values.Front()
-		for elem != nil {
-			outCh <- elem.Value.(T)
-			elem = elem.Next()
-		}
-
-		close(outCh)
-
+		consumeBuffer(ctx, inCh, outCh, backlogSize)
 	})
 
 	var putLock sync.RWMutex
@@ -116,29 +70,20 @@ func Consume[T any](
 		putLock.RLock()
 		defer putLock.RUnlock()
 
-		if putClosed {
+		if putClosed || len(errCh) > 0 {
 			return false
 		}
 
-		if len(errCh) > 0 {
-			return false
-		}
+		valueCond.L.Lock()
+		numValue++
+		valueCond.L.Unlock()
 
 		select {
-
 		case inCh <- v:
-			valueCond.L.Lock()
-			numValue++
-			n := numValue
-			valueCond.L.Unlock()
-			if n == 0 {
-				valueCond.Signal()
-			}
 			return true
-
 		case <-ctx.Done():
+			decrementNumValue(valueCond, &numValue)
 			return false
-
 		}
 	}
 
@@ -153,56 +98,104 @@ func Consume[T any](
 	}
 
 	wait = func(noMorePut bool) error {
-
 		if noMorePut {
 			closePut()
 			wg.Wait()
 		}
-
 		valueCond.L.Lock()
 		for numValue != 0 {
 			valueCond.Wait()
 		}
 		valueCond.L.Unlock()
-
 		select {
 		case err := <-errCh:
 			return err
 		default:
+			return nil
 		}
-
-		return nil
 	}
 
 	for i := 0; i < numThread; i++ {
 		i := i
-
 		wg.Go(func() {
-
-			for v := range outCh {
-				err := func() (err error) {
-					defer e5.Handle(&err)
-					return fn(i, v)
-				}()
-				if err != nil {
-					select {
-					case errCh <- err:
-					default:
-					}
-				}
-				valueCond.L.Lock()
-				numValue--
-				n := numValue
-				valueCond.L.Unlock()
-				if n == 0 {
-					valueCond.Signal()
-				}
-			}
-
+			consumeWorker(i, outCh, errCh, valueCond, &numValue, fn)
 		})
-
 	}
 
 	return
 
+}
+
+func consumeBuffer[T any](ctx context.Context, inCh, outCh chan T, backlogSize int) {
+	values := list.New()
+loop:
+	for {
+		c := inCh
+		if values.Len() > backlogSize {
+			c = nil
+		}
+		if values.Len() > 0 {
+			select {
+			case outCh <- values.Front().Value.(T):
+				values.Remove(values.Front())
+			case v, ok := <-c:
+				if !ok {
+					break loop
+				}
+				values.PushBack(v)
+			case <-ctx.Done():
+				break loop
+			}
+		} else {
+			select {
+			case v, ok := <-c:
+				if !ok {
+					break loop
+				}
+				select {
+				case outCh <- v:
+				default:
+					values.PushBack(v)
+				}
+			case <-ctx.Done():
+				break loop
+			}
+		}
+	}
+	for elem := values.Front(); elem != nil; elem = elem.Next() {
+		outCh <- elem.Value.(T)
+	}
+	close(outCh)
+}
+
+func consumeWorker[T any](
+	id int,
+	outCh chan T,
+	errCh chan error,
+	cond *sync.Cond,
+	numValue *int,
+	fn func(int, T) error,
+) {
+	for v := range outCh {
+		err := func() (err error) {
+			defer e5.Handle(&err)
+			return fn(id, v)
+		}()
+		if err != nil {
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+		decrementNumValue(cond, numValue)
+	}
+}
+
+func decrementNumValue(cond *sync.Cond, numValue *int) {
+	cond.L.Lock()
+	defer cond.L.Unlock()
+	*numValue--
+	if *numValue == 0 {
+		cond.Signal()
+	}
 }

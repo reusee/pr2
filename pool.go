@@ -6,6 +6,15 @@ import (
 	_ "unsafe"
 )
 
+const PoolTheory = `
+pr2.Pool is a stochastic object pool designed for high-concurrency environments.
+
+1. Lock-free acquisition: It uses fastrand and CompareAndSwap to find and claim available objects without global locks in the fast path.
+2. Stochastic search: By checking a fixed number of random slots (16), it avoids contention hotspots.
+3. Dynamic expansion: If the random search fails to find an available slot (indicating high contention), it aggressively replaces the element set with a fresh batch. 
+4. Reference Counting: Supports manual reference counting (GetRC) for objects shared across multiple goroutines.
+`
+
 type Pool[T any] struct {
 	l        sync.Mutex
 	newFunc  func() T
@@ -24,6 +33,9 @@ func NewPool[T any](
 	capacity uint32,
 	newFunc func() T,
 ) *Pool[T] {
+	if capacity == 0 {
+		panic("zero capacity")
+	}
 	pool := &Pool[T]{
 		capacity: capacity,
 		newFunc:  newFunc,

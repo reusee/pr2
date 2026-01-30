@@ -8,6 +8,14 @@ import (
 	"github.com/reusee/e5"
 )
 
+const WaitGroupTheory = `
+pr2.WaitGroup integrates sync.WaitGroup with context.Context.
+
+1. Hierarchical structure: NewWaitGroup can derive from a parent WaitGroup (stored in context), forming a tree. The parent will wait for its children to finish.
+2. Context synchronization: WaitGroup implements the context.Context interface. Cancellation is propagated down the hierarchy.
+3. Safety: Add() and Go() operations are guarded by context cancellation to prevent starting new work after the group is shutting down.
+`
+
 type waitGroupKey struct{}
 
 var WaitGroupKey = waitGroupKey{}
